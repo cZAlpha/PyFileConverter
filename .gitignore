@@ -1,0 +1,22 @@
+# Ignore bytecode files
+*.pyc
+*.pyo
+*__pycache__/
+
+# Ignore virtual environment directory
+venv/
+env/
+
+# Ignore IDE/editor specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore log files
+*.log
+
+# Ignore temporary files
+*.tmp
+*.bak
+*.swp
