@@ -60,6 +60,12 @@ class FileConverterApp:
         # Set initial theme
         self.set_theme(self.current_theme)
 
+        # Dictionary to store delete buttons with their item IDs
+        self.delete_buttons = {}
+
+        # Bind the Delete key event
+        self.root.bind('<Delete>', self.on_delete_key)
+
     def create_main_widgets(self):
         # File conversion type options
         self.conversion_type_var = tk.StringVar(value="txt")  # Default type
@@ -90,13 +96,13 @@ class FileConverterApp:
         self.file_list = ttk.Treeview(self.file_list_frame, columns=("Delete", "No", "File Name", "Additional Info"),
                                       show="headings")
         self.file_list.heading("Delete", text="", anchor="w")  # Empty heading for delete column
-        self.file_list.heading("No", text="No", anchor="w")
+        self.file_list.heading("No", text="#", anchor="w")
         self.file_list.heading("File Name", text="File Name", anchor="w")
-        self.file_list.heading("Additional Info", text="Additional Info", anchor="w")
-        self.file_list.column("Delete", width=50, anchor="center")  # Adjust width as needed
-        self.file_list.column("No", width=50, anchor="e")  # Shorten width of "No" column
-        self.file_list.column("File Name", width=300, anchor="w")  # Adjust width of "File Name" column
-        self.file_list.column("Additional Info", width=200, anchor="w")  # New column for additional info
+        self.file_list.heading("Additional Info", text="Output Filetype", anchor="w")
+        self.file_list.column("Delete", width=50, anchor="w")
+        self.file_list.column("No", width=50, anchor="e")
+        self.file_list.column("File Name", width=300, anchor="w")
+        self.file_list.column("Additional Info", width=100, anchor="w")  # New column for file change buttons
 
         # Pack the Treeview with padding on the right side
         self.file_list.pack(expand=True, fill=tk.BOTH, padx=(0, 20))  # Add 20px padding on the right side
@@ -109,6 +115,11 @@ class FileConverterApp:
 
         # Bind the Treeview select event to start editing
         self.file_list.bind("<Double-1>", self.on_item_double_click)
+
+    def on_delete_key(self, event):
+        selected_item = self.file_list.selection()
+        if selected_item:
+            self.delete_row(selected_item[0])
 
     def on_item_double_click(self, event):
         item = self.file_list.selection()
@@ -175,15 +186,12 @@ class FileConverterApp:
     def show_settings(self):
         self.main_frame.pack_forget()
         self.settings_frame.pack(fill=tk.BOTH, expand=True)
-        self.root.update_idletasks()  # Ensure UI updates immediately
 
     def show_main(self):
         self.settings_frame.pack_forget()
         self.main_frame.pack(fill=tk.BOTH, expand=True)
-        self.root.update_idletasks()  # Ensure UI updates immediately
 
     def set_theme(self, theme_name):
-        # Set theme for the ttkbootstrap window
         self.style.theme_use(theme_name)
         self.current_theme = theme_name
 
@@ -220,43 +228,48 @@ class FileConverterApp:
 
         results = {file: self.convert_file_type(file, conversion_type) for file in files}
 
-        # Clear existing entries in the Treeview ( NOT NECESSARY
+        # Clear existing entries in the Treeview
         for item in self.file_list.get_children():
             self.file_list.delete(item)
 
         # Add new entries to the Treeview
         for idx, (file, new_file) in enumerate(results.items(), start=1):
-            item_id = self.file_list.insert("", "end", values=("", idx, file, f"Converted to {new_file}"))
-            print("Item ID:", item_id[-3:])
-            print(int(item_id[-3:]) * 10)
+            item_id = self.file_list.insert("", "end", values=("", idx, file, "Select Filetype"))
 
             # Add a delete button aligned with the row
             self.create_delete_button(item_id)
 
     def create_delete_button(self, item_id):
-        # Ensure delete button is correctly placed in the "Delete" column
-        x, y, width, height = self.file_list.bbox(item_id, "Delete")
+        try:
+            # Ensure delete button is correctly placed in the "Delete" column
+            x, y, width, height = self.file_list.bbox(item_id, "Delete")
+        except:
+            x, y, width, height = 0, 0, 0, 0
 
-        # Remove any existing delete button
-        if hasattr(self, 'delete_button'):
-            self.delete_button.destroy()
+        width /= 3
+        height *= 0.9
 
         # Create a Canvas to draw a rounded button
         canvas = tk.Canvas(self.file_list_frame, width=width, height=height, bd=0, highlightthickness=0)
-        canvas.place(x=x + self.file_list_frame.winfo_rootx(), y=y + self.file_list_frame.winfo_rooty())
+        canvas.place(x=x + self.file_list_frame.winfo_rootx(), y=y - self.file_list_frame.winfo_rooty() / 2 + 100)
 
         # Draw a rounded rectangle (the delete button)
-        radius = 10  # Radius for the rounded corners
-        canvas.create_arc((0, 0, 2 * radius, 2 * radius), start=0, extent=90, fill=UI_COLORS['danger'], outline='')
-        canvas.create_arc((width - 2 * radius, 0, width, 2 * radius), start=90, extent=90, fill=UI_COLORS['danger'],
-                          outline='')
-        canvas.create_arc((0, height - 2 * radius, 2 * radius, height), start=270, extent=90, fill=UI_COLORS['danger'],
-                          outline='')
-        canvas.create_arc((width - 2 * radius, height - 2 * radius, width, height), start=180, extent=90,
-                          fill=UI_COLORS['danger'], outline='')
+        radius = 5  # Radius for the rounded corners
 
         canvas.create_rectangle((radius, 0, width - radius, height), fill=UI_COLORS['danger'], outline='')
         canvas.create_rectangle((0, radius, width, height - radius), fill=UI_COLORS['danger'], outline='')
+
+        # TOP LEFT
+        canvas.create_arc((0, 0, 2 * radius, 2 * radius), start=90, extent=180, fill=UI_COLORS['danger'], outline='')
+        # TOP RIGHT
+        canvas.create_arc((width - 2 * radius, 0, width, 2 * radius), start=0, extent=90, fill=UI_COLORS['danger'],
+                          outline='')
+        # BOTTOM LEFT
+        canvas.create_arc((0, height - 2 * radius, 2 * radius, height), start=0, extent=270, fill=UI_COLORS['danger'],
+                          outline='')
+        # BOTTOM RIGHT
+        canvas.create_arc((width - 2 * radius, height - 2 * radius, width, height), start=0, extent=-90,
+                          fill=UI_COLORS['danger'], outline='')
 
         # Draw the "X" text on the rounded rectangle
         canvas.create_text(width / 2, height / 2, text="X", fill=UI_COLORS['light'], font=('Arial', 10, 'bold'))
@@ -264,13 +277,17 @@ class FileConverterApp:
         # Bind the canvas click event to delete the row
         canvas.bind("<Button-1>", lambda e: self.delete_row(item_id))
 
-        # Store reference to the canvas if needed for future updates
-        self.delete_button = canvas
+        # Store reference to the canvas using item_id
+        self.delete_buttons[item_id] = canvas
 
     def delete_row(self, item_id):
+        # Printing to console
+        print("~ " + str(item_id)[-3:] + " Row Has Been Deleted ~")
+
         # Remove the delete button
-        if hasattr(self, 'delete_button'):
-            self.delete_button.destroy()
+        if item_id in self.delete_buttons:
+            self.delete_buttons[item_id].destroy()
+            del self.delete_buttons[item_id]
 
         # Remove the selected row
         self.file_list.delete(item_id)
