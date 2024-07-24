@@ -117,6 +117,7 @@ class FileConverterApp:
         self.file_list.bind("<Double-1>", self.on_item_double_click)
 
     def on_delete_key(self, event):
+        print("A row is being deleted")
         selected_item = self.file_list.selection()
         if selected_item:
             self.delete_row(selected_item[0])
@@ -243,46 +244,120 @@ class FileConverterApp:
         try:
             # Ensure delete button is correctly placed in the "Delete" column
             x, y, width, height = self.file_list.bbox(item_id, "Delete")
-        except:
-            x, y, width, height = 0, 0, 0, 0
+            print( "Created Delete Button:" + str(item_id) )
+            print( "X:", str(x) )
+            print( "Y:", str(y) )
+            print( "Width: ", str(width) )
+            print( "Height:", str(width))
+            width /= 3
+            height *= 0.8
 
-        width /= 3
-        height *= 0.9
+            # Create a Canvas to draw a rounded button
+            canvas = tk.Canvas(self.file_list_frame, width=width, height=height, bd=0, highlightthickness=0)
+            canvas.place(x=x + self.file_list_frame.winfo_rootx(), y=y - self.file_list_frame.winfo_rooty() / 2 + 100)
 
-        # Create a Canvas to draw a rounded button
-        canvas = tk.Canvas(self.file_list_frame, width=width, height=height, bd=0, highlightthickness=0)
-        canvas.place(x=x + self.file_list_frame.winfo_rootx(), y=y - self.file_list_frame.winfo_rooty() / 2 + 100)
+            # Draw a rounded rectangle (the delete button)
+            radius = 5  # Radius for the rounded corners
 
-        # Draw a rounded rectangle (the delete button)
-        radius = 5  # Radius for the rounded corners
+            canvas.create_rectangle((radius, 0, width - radius, height), fill=UI_COLORS['danger'], outline='')
+            canvas.create_rectangle((0, radius, width, height - radius), fill=UI_COLORS['danger'], outline='')
 
-        canvas.create_rectangle((radius, 0, width - radius, height), fill=UI_COLORS['danger'], outline='')
-        canvas.create_rectangle((0, radius, width, height - radius), fill=UI_COLORS['danger'], outline='')
+            # TOP LEFT
+            canvas.create_arc((0, 0, 2 * radius, 2 * radius), start=90, extent=180, fill=UI_COLORS['danger'],
+                              outline='')
+            # TOP RIGHT
+            canvas.create_arc((width - 2 * radius, 0, width, 2 * radius), start=0, extent=90, fill=UI_COLORS['danger'],
+                              outline='')
+            # BOTTOM LEFT
+            canvas.create_arc((0, height - 2 * radius, 2 * radius, height), start=0, extent=270,
+                              fill=UI_COLORS['danger'],
+                              outline='')
+            # BOTTOM RIGHT
+            canvas.create_arc((width - 2 * radius, height - 2 * radius, width, height), start=0, extent=-90,
+                              fill=UI_COLORS['danger'], outline='')
 
-        # TOP LEFT
-        canvas.create_arc((0, 0, 2 * radius, 2 * radius), start=90, extent=180, fill=UI_COLORS['danger'], outline='')
-        # TOP RIGHT
-        canvas.create_arc((width - 2 * radius, 0, width, 2 * radius), start=0, extent=90, fill=UI_COLORS['danger'],
-                          outline='')
-        # BOTTOM LEFT
-        canvas.create_arc((0, height - 2 * radius, 2 * radius, height), start=0, extent=270, fill=UI_COLORS['danger'],
-                          outline='')
-        # BOTTOM RIGHT
-        canvas.create_arc((width - 2 * radius, height - 2 * radius, width, height), start=0, extent=-90,
-                          fill=UI_COLORS['danger'], outline='')
+            # Draw the "X" text on the rounded rectangle
+            canvas.create_text(width / 2, height / 2, text="X", fill=UI_COLORS['light'], font=('Arial', 10, 'bold'))
 
-        # Draw the "X" text on the rounded rectangle
-        canvas.create_text(width / 2, height / 2, text="X", fill=UI_COLORS['light'], font=('Arial', 10, 'bold'))
+            # Bind the canvas click event to delete the row
+            canvas.bind("<Button-1>", lambda e: self.delete_row(item_id))
 
-        # Bind the canvas click event to delete the row
-        canvas.bind("<Button-1>", lambda e: self.delete_row(item_id))
+            # Store reference to the canvas using item_id
+            self.delete_buttons[item_id] = canvas
+        except:  # If the delete button is being a bitch (starts @ item # 3)
+            print("Exception for delete button: " + str(item_id))
+            # Set last_items_id to the previous item_id
+            if item_id.startswith('I00') and len(item_id) > 3:
+                numeric_part = int(item_id[3:])  # Extract numeric part
+                if numeric_part > 0:
+                    previous_numeric_part = numeric_part - 1
+                    last_items_id = f'I00{previous_numeric_part}'
+                    try:
+                        x, y, width, height = self.file_list.bbox(last_items_id, "Delete")
+                        y += 16
+                        width /= 3
+                        height *= 0.8
 
-        # Store reference to the canvas using item_id
-        self.delete_buttons[item_id] = canvas
+                        # Create a Canvas to draw a rounded button
+                        canvas = tk.Canvas(self.file_list_frame, width=width, height=height, bd=0, highlightthickness=0)
+                        canvas.place(x=x + self.file_list_frame.winfo_rootx(),
+                                     y=y - self.file_list_frame.winfo_rooty() / 2 + 100)
+
+                        # Draw a rounded rectangle (the delete button)
+                        radius = 5  # Radius for the rounded corners
+
+                        canvas.create_rectangle((radius, 0, width - radius, height), fill=UI_COLORS['danger'],
+                                                outline='')
+                        canvas.create_rectangle((0, radius, width, height - radius), fill=UI_COLORS['danger'],
+                                                outline='')
+
+                        # TOP LEFT
+                        canvas.create_arc((0, 0, 2 * radius, 2 * radius), start=90, extent=180,
+                                          fill=UI_COLORS['danger'], outline='')
+                        # TOP RIGHT
+                        canvas.create_arc((width - 2 * radius, 0, width, 2 * radius), start=0, extent=90,
+                                          fill=UI_COLORS['danger'],
+                                          outline='')
+                        # BOTTOM LEFT
+                        canvas.create_arc((0, height - 2 * radius, 2 * radius, height), start=0, extent=270,
+                                          fill=UI_COLORS['danger'],
+                                          outline='')
+                        # BOTTOM RIGHT
+                        canvas.create_arc((width - 2 * radius, height - 2 * radius, width, height), start=0, extent=-90,
+                                          fill=UI_COLORS['danger'], outline='')
+
+                        # Draw the "X" text on the rounded rectangle
+                        canvas.create_text(width / 2, height / 2, text="X", fill=UI_COLORS['light'],
+                                           font=('Arial', 10, 'bold'))
+
+                        # Bind the canvas click event to delete the row
+                        canvas.bind("<Button-1>", lambda e: self.delete_row(item_id))
+
+                        # Store reference to the canvas using item_id
+                        self.delete_buttons[item_id] = canvas
+                    except:
+                        print("Exception for previous delete button: " + str(last_items_id))
+                else:
+                    print("No previous item_id (numeric part is zero or less)")
+            else:
+                print("Invalid item_id format")
+
+
+
 
     def delete_row(self, item_id):
         # Printing to console
         print("~ " + str(item_id)[-3:] + " Row Has Been Deleted ~")
+
+        # Extract numeric part of item_id
+        numeric_part = int(item_id[3:])
+
+        # Redraw any delete buttons whose item_id is larger than the current row's delete button item_id
+        for btn_id in list(self.delete_buttons.keys()):
+            btn_numeric_part = int(btn_id[3:])
+            if btn_numeric_part > numeric_part:
+                x, y, width, height = self.file_list.bbox(btn_id, "Delete")
+                self.delete_buttons[btn_id].place(x=x, y=y - 16, width=width, height=height)
 
         # Remove the delete button
         if item_id in self.delete_buttons:
