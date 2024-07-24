@@ -67,6 +67,9 @@ class FileConverterApp:
         # Bind the Delete key event
         self.root.bind('<Delete>', self.on_delete_key)
 
+        # Bind the resizing of the window and allat
+        self.root.bind('<Configure>', self.on_configure)
+
     def create_main_widgets(self):
         # File conversion type options
         self.conversion_type_var = tk.StringVar(value="txt")  # Default type
@@ -313,7 +316,7 @@ class FileConverterApp:
             btn_numeric_part = int(btn_id[3:])
             if btn_numeric_part > numeric_part:
                 x, y, width, height = self.file_list.bbox(btn_id, "Delete")
-                self.delete_buttons[btn_id].place(x=x + 14, y=y - height, width=width, height=height)
+                self.delete_buttons[btn_id].place(x=x + 18, y=y - height, width=width, height=height)
 
         # Remove the delete button
         if item_id in self.delete_buttons:
@@ -323,6 +326,11 @@ class FileConverterApp:
         # Remove the selected row
         self.file_list.delete(item_id)
 
+    def on_configure(self, event):
+        self.root.update_idletasks()
+        self.root_x = self.root.winfo_rootx()
+        self.root_y = self.root.winfo_rooty()
+        print(f"Window moved. New root position: ({self.root_x}, {self.root_y})")
 
 
 if __name__ == "__main__":

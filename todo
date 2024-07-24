@@ -1,0 +1,14 @@
+TO DO
+
+1. Fix error with delete buttons not being instantiated at the right (x,y) location due to moving the window after the application is instantiated
+
+2. Fix the back button on the settings menu not working, god only knows why it won't lmao
+
+3. Actually add buttons to change the filetype
+
+4. Add a button to start converting
+
+5. Optional: Make a loading screen to occupy the user while the program processes the files
+
+6. Add a completed screen that pops up after the user converts their imported files and has a clear/back button that goes back to the main menu
+        - Ensure that the completed screen shows the original filename and extensions as well as the new ones
