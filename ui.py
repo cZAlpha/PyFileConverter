@@ -17,6 +17,7 @@ UI_COLORS = {
 }
 
 
+
 class FileConverterApp:
     def __init__(self, root):
         self.root = root
@@ -72,12 +73,12 @@ class FileConverterApp:
 
         # Create the title label and place it at the top center
         ttk.Label(self.main_frame, text="PyFile Converter", font=self.custom_font_title).grid(row=0, column=1, pady=10,
-                                                                                              padx=10, sticky="n")
+                                                                                              padx=(100, 20), sticky="n")
 
         # Create the Import button and place it in the center row
         import_button = ttk.Button(self.main_frame, text="Import Files and Convert", command=self.on_convert,
                                    style='Custom.TButton')
-        import_button.grid(row=1, column=1, pady=20, padx=10)
+        import_button.grid(row=1, column=1, pady=20, padx=(90, 20) )
 
         # Create a frame to hold the settings button in the top-right corner
         top_right_frame = ttk.Frame(self.main_frame)
@@ -105,7 +106,7 @@ class FileConverterApp:
         self.file_list.column("Additional Info", width=100, anchor="w")  # New column for file change buttons
 
         # Pack the Treeview with padding on the right side
-        self.file_list.pack(expand=True, fill=tk.BOTH, padx=(0, 20))  # Add 20px padding on the right side
+        self.file_list.pack(expand=True, fill=tk.BOTH, padx=(20, 20))  # Add 20px padding on the right side
 
         # Configure grid column weights to ensure proper alignment
         self.main_frame.grid_columnconfigure(0, weight=1)
@@ -176,10 +177,13 @@ class FileConverterApp:
         ttk.Radiobutton(self.settings_frame, text="Dark Mode", variable=self.theme_var, value="darkly",
                         style='Custom.TRadiobutton').pack(pady=5)
 
+        # BACK BUTTON
+        ttk.Button(self.settings_frame, text="Back", command=self.back_to_main(), style='Custom.TButton').pack(
+            side=tk.TOP, padx=10, pady=10)
+        # APPLY BUTTON
         ttk.Button(self.settings_frame, text="Apply", command=self.confirm_apply, style='Custom.TButton').pack(
-            side=tk.LEFT, padx=10, pady=10)
-        ttk.Button(self.settings_frame, text="Back", command=self.confirm_back, style='Custom.TButton').pack(
-            side=tk.RIGHT, padx=10, pady=10)
+            side=tk.TOP, padx=10, pady=10)
+
 
         # Initially hide the settings frame
         self.settings_frame.pack_forget()
@@ -201,9 +205,9 @@ class FileConverterApp:
             self.set_theme(self.theme_var.get())
             self.show_main()
 
-    def confirm_back(self):
-        if messagebox.askyesno("Confirm Back", "Are you sure you want to go back without applying changes?"):
-            self.show_main()
+    def back_to_main(self):
+        print("Going back to the main menu")
+        self.show_main()
 
     def select_files(self):
         file_paths = filedialog.askopenfilenames(
@@ -242,19 +246,29 @@ class FileConverterApp:
 
     def create_delete_button(self, item_id):
         try:
+            # Ensure item exists
+            if not self.file_list.exists(item_id):
+                print(f"Item {item_id} does not exist.")
+                return
+
+            # Ensure item is visible
+            self.file_list.see(item_id)
+
             # Ensure delete button is correctly placed in the "Delete" column
-            x, y, width, height = self.file_list.bbox(item_id, "Delete")
-            print( "Created Delete Button:" + str(item_id) )
-            print( "X:", str(x) )
-            print( "Y:", str(y) )
-            print( "Width: ", str(width) )
-            print( "Height:", str(width))
+            bbox = self.file_list.bbox(item_id, "Delete")
+            if not bbox:
+                print(f"Could not retrieve bbox for item {item_id}, column 'Delete'.")
+                return
+
+            x, y, width, height = bbox
+            print(f"bbox for item {item_id}, column 'Delete': x={x}, y={y}, width={width}, height={height}")
             width /= 3
             height *= 0.8
+            y -= 200
 
             # Create a Canvas to draw a rounded button
             canvas = tk.Canvas(self.file_list_frame, width=width, height=height, bd=0, highlightthickness=0)
-            canvas.place(x=x + self.file_list_frame.winfo_rootx(), y=y - self.file_list_frame.winfo_rooty() / 2 + 100)
+            canvas.place(x=x + self.file_list_frame.winfo_rootx(), y=y + self.file_list_frame.winfo_rooty())
 
             # Draw a rounded rectangle (the delete button)
             radius = 5  # Radius for the rounded corners
@@ -284,66 +298,8 @@ class FileConverterApp:
 
             # Store reference to the canvas using item_id
             self.delete_buttons[item_id] = canvas
-        except:  # If the delete button is being a bitch (starts @ item # 3)
-            print("Exception for delete button: " + str(item_id))
-            # Set last_items_id to the previous item_id
-            if item_id.startswith('I00') and len(item_id) > 3:
-                numeric_part = int(item_id[3:])  # Extract numeric part
-                if numeric_part > 0:
-                    previous_numeric_part = numeric_part - 1
-                    last_items_id = f'I00{previous_numeric_part}'
-                    try:
-                        x, y, width, height = self.file_list.bbox(last_items_id, "Delete")
-                        y += 16
-                        width /= 3
-                        height *= 0.8
-
-                        # Create a Canvas to draw a rounded button
-                        canvas = tk.Canvas(self.file_list_frame, width=width, height=height, bd=0, highlightthickness=0)
-                        canvas.place(x=x + self.file_list_frame.winfo_rootx(),
-                                     y=y - self.file_list_frame.winfo_rooty() / 2 + 100)
-
-                        # Draw a rounded rectangle (the delete button)
-                        radius = 5  # Radius for the rounded corners
-
-                        canvas.create_rectangle((radius, 0, width - radius, height), fill=UI_COLORS['danger'],
-                                                outline='')
-                        canvas.create_rectangle((0, radius, width, height - radius), fill=UI_COLORS['danger'],
-                                                outline='')
-
-                        # TOP LEFT
-                        canvas.create_arc((0, 0, 2 * radius, 2 * radius), start=90, extent=180,
-                                          fill=UI_COLORS['danger'], outline='')
-                        # TOP RIGHT
-                        canvas.create_arc((width - 2 * radius, 0, width, 2 * radius), start=0, extent=90,
-                                          fill=UI_COLORS['danger'],
-                                          outline='')
-                        # BOTTOM LEFT
-                        canvas.create_arc((0, height - 2 * radius, 2 * radius, height), start=0, extent=270,
-                                          fill=UI_COLORS['danger'],
-                                          outline='')
-                        # BOTTOM RIGHT
-                        canvas.create_arc((width - 2 * radius, height - 2 * radius, width, height), start=0, extent=-90,
-                                          fill=UI_COLORS['danger'], outline='')
-
-                        # Draw the "X" text on the rounded rectangle
-                        canvas.create_text(width / 2, height / 2, text="X", fill=UI_COLORS['light'],
-                                           font=('Arial', 10, 'bold'))
-
-                        # Bind the canvas click event to delete the row
-                        canvas.bind("<Button-1>", lambda e: self.delete_row(item_id))
-
-                        # Store reference to the canvas using item_id
-                        self.delete_buttons[item_id] = canvas
-                    except:
-                        print("Exception for previous delete button: " + str(last_items_id))
-                else:
-                    print("No previous item_id (numeric part is zero or less)")
-            else:
-                print("Invalid item_id format")
-
-
-
+        except Exception as e:
+            print(f"Exception for delete button: {item_id}: {e}")
 
     def delete_row(self, item_id):
         # Printing to console
@@ -357,7 +313,7 @@ class FileConverterApp:
             btn_numeric_part = int(btn_id[3:])
             if btn_numeric_part > numeric_part:
                 x, y, width, height = self.file_list.bbox(btn_id, "Delete")
-                self.delete_buttons[btn_id].place(x=x, y=y - 16, width=width, height=height)
+                self.delete_buttons[btn_id].place(x=x + 14, y=y - height, width=width, height=height)
 
         # Remove the delete button
         if item_id in self.delete_buttons:
@@ -366,6 +322,7 @@ class FileConverterApp:
 
         # Remove the selected row
         self.file_list.delete(item_id)
+
 
 
 if __name__ == "__main__":
