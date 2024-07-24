@@ -70,6 +70,9 @@ class FileConverterApp:
         # Bind the resizing of the window and allat
         self.root.bind('<Configure>', self.on_configure)
 
+        # Counter for not printing new window pos 100 a second
+        self.windowmovingcounter = 0
+
     def create_main_widgets(self):
         # File conversion type options
         self.conversion_type_var = tk.StringVar(value="txt")  # Default type
@@ -175,17 +178,19 @@ class FileConverterApp:
 
         self.theme_var = tk.StringVar(value=self.current_theme)
 
-        ttk.Radiobutton(self.settings_frame, text="Light Mode", variable=self.theme_var, value="united",
-                        style='Custom.TRadiobutton').pack(pady=5)
-        ttk.Radiobutton(self.settings_frame, text="Dark Mode", variable=self.theme_var, value="darkly",
-                        style='Custom.TRadiobutton').pack(pady=5)
+        # Dark  mode button
+        darkmodeButton = ttk.Button(self.settings_frame, text="Dark Mode", command=self.set_theme_dark, style='Custom.LargeTButton')
+        darkmodeButton.pack(pady=5)
+        # Light mode button
+        lightmodeButton = ttk.Button(self.settings_frame, text="Light Mode", command=self.set_theme_light, style='Custom.LargeTButton')
+        lightmodeButton.pack(pady=5)
+
 
         # BACK BUTTON
-        ttk.Button(self.settings_frame, text="Back", command=self.back_to_main(), style='Custom.TButton').pack(
-            side=tk.TOP, padx=10, pady=10)
-        # APPLY BUTTON
-        ttk.Button(self.settings_frame, text="Apply", command=self.confirm_apply, style='Custom.TButton').pack(
-            side=tk.TOP, padx=10, pady=10)
+        ttk.Button(self.settings_frame, text="Back", command=self.back_to_main, style='Custom.TButton').pack(side=tk.TOP, padx=10, pady=10)
+        # # APPLY BUTTON
+        # ttk.Button(self.settings_frame, text="Apply", command=self.confirm_apply, style='Custom.TButton').pack(
+        #     side=tk.TOP, padx=10, pady=10)
 
 
         # Initially hide the settings frame
@@ -199,14 +204,28 @@ class FileConverterApp:
         self.settings_frame.pack_forget()
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
+    # def confirm_apply(self):
+    #     # THE FOLLOWING IF STATEMENT FUCKS UP THE REFRESHING OF THE WINDOW FOR NO REASON: if messagebox.askyesno("Confirm Apply", "Are you sure you want to apply these changes?"):
+    #     if ( self.theme_var.get() != None ):
+    #         self.set_theme(self.theme_var.get())
+    #     else:
+    #         print("ERROR: THEME_VAR IS NONE!")
+    #     self.show_main()
+
     def set_theme(self, theme_name):
+        print("Theme change: " + str(theme_name))
         self.style.theme_use(theme_name)
         self.current_theme = theme_name
 
-    def confirm_apply(self):
-        if messagebox.askyesno("Confirm Apply", "Are you sure you want to apply these changes?"):
-            self.set_theme(self.theme_var.get())
-            self.show_main()
+    def set_theme_light(self):
+        print("Changed to light theme")
+        self.set_theme('united')
+        self.current_theme = 'united'
+
+    def set_theme_dark(self):
+        print("Changed to dark theme")
+        self.set_theme('darkly')
+        self.current_theme = 'darkly'
 
     def back_to_main(self):
         print("Going back to the main menu")
@@ -224,7 +243,13 @@ class FileConverterApp:
         return f"{file_path}.{new_extension}"
 
     def on_convert(self):
+        # Obtain the currently selected files from the user
         files = self.select_files()
+
+        if ( len(files) > 24 ):
+            messagebox.showwarning("Too Many Files Selected", "Please select than than 24 files.")
+            return
+
         if not files:
             messagebox.showwarning("No files selected", "Please select at least one file.")
             return
@@ -240,12 +265,24 @@ class FileConverterApp:
         for item in self.file_list.get_children():
             self.file_list.delete(item)
 
+        # DELETE ALL DELETE BUTTONS BC THIS PROCESS DELETES ALL PREVIOUS ENTRIES INTO THE TABLE/LIST
+        # Remove the delete buttons
+        listOfDeleteButtonIDs = []
+        for item_id in self.delete_buttons:
+            print("Delete Button ID:", item_id, "will be destroyed...")
+            listOfDeleteButtonIDs.append(item_id)  # Append the current item ID into the list that contains which buttons to delete
+
+        for deleteButton in listOfDeleteButtonIDs:
+            self.delete_buttons[deleteButton].destroy()
+            del self.delete_buttons[deleteButton]
+
         # Add new entries to the Treeview
         for idx, (file, new_file) in enumerate(results.items(), start=1):
             item_id = self.file_list.insert("", "end", values=("", idx, file, "Select Filetype"))
 
             # Add a delete button aligned with the row
             self.create_delete_button(item_id)
+
 
     def create_delete_button(self, item_id):
         try:
@@ -264,7 +301,7 @@ class FileConverterApp:
                 return
 
             x, y, width, height = bbox
-            print(f"bbox for item {item_id}, column 'Delete': x={x}, y={y}, width={width}, height={height}")
+            print(f"New Delete button: {item_id}, x={x}, y={y}, width={width}, height={height}")
             width /= 3
             height *= 0.8
             y -= 200
@@ -309,11 +346,12 @@ class FileConverterApp:
         print("~ " + str(item_id)[-3:] + " Row Has Been Deleted ~")
 
         # Extract numeric part of item_id
-        numeric_part = int(item_id[3:])
+        numeric_part = int(float.fromhex(item_id[-3:]))
 
         # Redraw any delete buttons whose item_id is larger than the current row's delete button item_id
         for btn_id in list(self.delete_buttons.keys()):
-            btn_numeric_part = int(btn_id[3:])
+            btn_numeric_part = int(float.fromhex(btn_id[-3:]))
+            # print("Num:", numeric_part, "Btn:", btn_numeric_part)
             if btn_numeric_part > numeric_part:
                 x, y, width, height = self.file_list.bbox(btn_id, "Delete")
                 self.delete_buttons[btn_id].place(x=x + 18, y=y - height, width=width, height=height)
@@ -330,7 +368,8 @@ class FileConverterApp:
         self.root.update_idletasks()
         self.root_x = self.root.winfo_rootx()
         self.root_y = self.root.winfo_rooty()
-        print(f"Window moved. New root position: ({self.root_x}, {self.root_y})")
+        # print(f"Window moved. New root position: ({self.root_x}, {self.root_y})")
+
 
 
 if __name__ == "__main__":
