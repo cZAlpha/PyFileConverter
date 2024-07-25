@@ -1,6 +1,6 @@
-TO DO
+TO DO:
 
- - Fix the back button on the settings menu not working, god only knows why it won't lmao
+ - Figure out why the fuck the table showing the files doesn't start on the left fucking side (I spent at least half an hour scouring the code and there is no discernable reason it should be doing that)
 
  - Actually add buttons to change the filetype
 
@@ -15,7 +15,6 @@ TO DO
 
 
  - Figure out what this retarded error is coming from and stop it from happening, UI in any programming language that isn't web based is fucking CANCER:
-
 
 Exception in Tkinter callback
 Traceback (most recent call last):
