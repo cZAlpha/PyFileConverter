@@ -10,4 +10,7 @@ from ui import *             # Import all user interface functions
 # To save your results, simply hit the save button on the plot window that pops up.
 #
 
-ui_responses = mainUI()  # This will open the UI and return the dictionary containing the results
+# ui_responses = mainUI()  # This will open the UI and return the dictionary containing the results
+
+
+print(int(float.fromhex('A')))

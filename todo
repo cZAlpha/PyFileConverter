@@ -1,0 +1,37 @@
+TO DO
+
+ - Fix the back button on the settings menu not working, god only knows why it won't lmao
+
+ - Actually add buttons to change the filetype
+
+ - Add a button to start converting
+
+ - Optional: Make a loading screen to occupy the user while the program processes the files
+
+ - Add a completed screen that pops up after the user converts their imported files and has a clear/back button that goes back to the main menu
+        - Ensure that the completed screen shows the original filename and extensions as well as the new ones
+
+
+
+
+ - Figure out what this retarded error is coming from and stop it from happening, UI in any programming language that isn't web based is fucking CANCER:
+
+
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/tkinter/__init__.py", line 1962, in __call__
+    return self.func(*args)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/nbklaus21/PycharmProjects/PyFileConverter/ui.py", line 227, in set_theme_dark
+    self.set_theme('darkly')
+  File "/Users/nbklaus21/PycharmProjects/PyFileConverter/ui.py", line 217, in set_theme
+    self.style.theme_use(theme_name)
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/ttkbootstrap/style.py", line 592, in theme_use
+    self._create_ttk_styles_on_theme_change()
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/ttkbootstrap/style.py", line 692, in _create_ttk_styles_on_theme_change
+    method(builder, color)
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/ttkbootstrap/style.py", line 3584, in create_radiobutton_style
+    self.style.element_create(
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/tkinter/ttk.py", line 438, in element_create
+    self.tk.call(self._name, "element", "create", elementname, etype,
+_tkinter.TclError: Duplicate element TRadiobutton.indicator
