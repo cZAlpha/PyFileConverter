@@ -25,7 +25,7 @@ class FileConverterApp:
 
         # Set the application icon
 
-        self.root.iconphoto(False, tk.PhotoImage(file="pyfileconverter_icon.png"))
+        self.root.iconphoto(False, tk.PhotoImage(file="assets/app_icon/png/pyfileconverter_icon.png"))
 
 
         # Initialize the style
