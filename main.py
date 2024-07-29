@@ -1,4 +1,4 @@
-from ui import *             # Import all user interface functions
+# from ui import *             # Import all user interface functions
 
 #
 # Welcome!
@@ -13,4 +13,10 @@ from ui import *             # Import all user interface functions
 # ui_responses = mainUI()  # This will open the UI and return the dictionary containing the results
 
 
-print(int(float.fromhex('A')))
+def convert_file(conversion_extension):
+    valid_extensions = ['.jpg', '.jpeg', '.png']
+
+    if conversion_extension not in valid_extensions:
+        print("ERROR: Invalid conversion extension")
+    else:
+        print("Success!")

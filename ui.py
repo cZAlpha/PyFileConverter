@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter.font import Font
 import ttkbootstrap as ttk
+from PIL import Image  # For file conversion
+import os  # For file accessing
 # from ttkbootstrap.constants import *
 
 # Centralized UI color variables
@@ -24,9 +26,10 @@ class FileConverterApp:
         self.current_theme = "united"  # Default theme
 
         # Set the application icon
-
         self.root.iconphoto(False, tk.PhotoImage(file="assets/app_icon/png/pyfileconverter_icon.png"))
 
+        # Create list for files
+        self.selected_file_list = []
 
         # Initialize the style
         self.style = ttk.Style()
@@ -74,18 +77,17 @@ class FileConverterApp:
 
     def create_main_widgets(self):
         # File conversion type options
-        self.conversion_type_var = tk.StringVar(value="txt")  # Default type
+        self.conversion_type_var = tk.StringVar(value="Select A Filetype")  # Default type
 
         # Create the title label and place it at the top center
-        ttk.Label(self.main_frame, text="PyFile Converter", font=self.custom_font_title).grid(row=0, column=1, pady=10, padx=(0,60), sticky="n")
-
+        ttk.Label(self.main_frame, text="PyFile Converter", font=self.custom_font_title).grid(row=0, column=1, pady=10,
+                                                                                              padx=(0, 60), sticky="n")
         # Create a frame to house the clear all button
         top_left_frame = ttk.Frame(self.main_frame)
         top_left_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nw")
 
         # Place the clear button
-        clear_button = ttk.Button(top_left_frame, text="Clear All", command=self.clear_all_entries,
-                                     style='danger')
+        clear_button = ttk.Button(top_left_frame, text="Clear All", command=self.clear_all_entries, style='danger', width=8)
         clear_button.pack(side=tk.RIGHT)
 
         # Create a frame to hold the settings button in the top-right corner
@@ -93,13 +95,12 @@ class FileConverterApp:
         top_right_frame.grid(row=0, column=2, padx=10, pady=10, sticky="ne")
 
         # Place the Settings button in the top-right frame using the custom style with larger font
-        settings_button = ttk.Button(top_right_frame, text="⚙", command=self.show_settings,
-                                     style='secondary')
+        settings_button = ttk.Button(top_right_frame, text="⚙", command=self.show_settings, style='secondary')
         settings_button.pack(side=tk.RIGHT)
 
         # Create a frame to hold the import and convert buttons in the middle-rightmost sector
         middle_right_frame = ttk.Frame(self.main_frame)
-        middle_right_frame.grid(row=1, column=2, padx=(0,40), pady=10, sticky="ne")
+        middle_right_frame.grid(row=1, column=2, padx=(0, 40), pady=10, sticky="ne")
 
         # Create the Import button
         import_button = ttk.Button(middle_right_frame, text="Import Files", command=self.on_convert,
@@ -107,29 +108,34 @@ class FileConverterApp:
         import_button.pack(side=tk.TOP, pady=10)
 
         # Create the Convert button
-        convert_button = ttk.Button(middle_right_frame, text="Convert Files", command=self.on_convert,
-                                   style='Custom.TButton')
+        convert_button = ttk.Button(middle_right_frame, text="Convert Files", command=lambda: self.convert_file(self.conversion_type_var.get()),
+                                    style='Custom.TButton')
         convert_button.pack(side=tk.BOTTOM, pady=10)
+
+        # Create the dropdown for filetype selection
+        filetypes = ['.pdf', '.png', '.jpg']  # CHANGE THIS FOR MORE FILE TYPES
+        self.filetype_dropdown = ttk.Combobox(middle_right_frame, textvariable=self.conversion_type_var, values=filetypes, state='readonly')
+        self.filetype_dropdown.pack(side=tk.RIGHT, pady=5)
 
         # Create a frame for file listing
         self.file_list_frame = ttk.Frame(self.main_frame)
         self.file_list_frame.grid(row=1, column=0, columnspan=2, pady=10, padx=10, sticky="nsew")
 
         # Create Treeview for file list
-        self.file_list = ttk.Treeview(self.file_list_frame, columns=("No", "File Name", "Additional Info"), show="headings")
-        self.file_list.heading("No", text="#", anchor="e")
-        self.file_list.heading("File Name", text="File Name", anchor="w")
-        self.file_list.heading("Additional Info", text="Output Filetype", anchor="w")
-        self.file_list.column("No", width=10, anchor="e")
-        self.file_list.column("File Name", width=50, anchor="w")
-        self.file_list.column("Additional Info", width=50, anchor="w")  # New column for file change buttons
+        self.file_list = ttk.Treeview(self.file_list_frame, columns=("No", "File Name", "Additional Info"),
+                                      show="headings")
+        self.file_list.heading("No", text="#", anchor="e")  # Number of files heading
+        self.file_list.heading("File Name", text="File Name", anchor="w")  # File name heading
+        self.file_list.heading("Additional Info", text="Output Filetype", anchor="w")  # Additional information heading
+        self.file_list.column("No", width=10, anchor="e")  # Number of files column
+        self.file_list.column("File Name", width=50, anchor="w")  # File name column
+        self.file_list.column("Additional Info", width=50, anchor="w")  # Additional information column
 
         # Pack the Treeview with padding on the right side
         self.file_list.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)  # Add 20px padding on the right side
 
         # Configure grid column weights to ensure proper alignment
-        self.main_frame.grid_columnconfigure(0, weight=1)
-        self.main_frame.grid_columnconfigure(1, weight=1)  # Center column gets more weight
+        self.main_frame.grid_columnconfigure(0, weight=0, minsize=10)  # Skinny leftmost column
         self.main_frame.grid_columnconfigure(2, weight=1)
         self.main_frame.grid_rowconfigure(2, weight=1)  # Ensure the file list expands
 
@@ -267,9 +273,13 @@ class FileConverterApp:
                 returnStr = str[lastSlash + 1:]
                 return returnStr
 
-    def on_convert(self):
+    def on_convert(self):  # THIS FUNCTION DOES NOT CONVERT ANYTHING BUT RATHER HANDLES FILE SELECTION!!!
         # Obtain the currently selected files from the user
         files = self.select_files()
+
+        for file in files:  # Save it to the list!
+            self.selected_file_list.append(file)
+
         # String cut the filepath to only include the filename and the file extensions
 
         if ( len(files) > 10 ):
@@ -366,8 +376,11 @@ class FileConverterApp:
     #         print(f"Exception for delete button: {item_id}: {e}")
 
     def clear_all_entries(self):
-        for item in self.file_list.get_children():
+        for item in self.file_list.get_children():  # Deletes it out of the UI
             self.file_list.delete(item)
+
+        # Delete the internal selected file list to fully clear everything
+        self.selected_file_list = []
 
     # def delete_row(self, item_id):
     #     # Printing to console
@@ -400,29 +413,32 @@ class FileConverterApp:
 
 
 
+    def convert_file(self, conversion_extension):
+        print("SELECTED FILETYPE:", conversion_extension)
+        valid_extensions = ['.jpg', '.jpeg', '.png', '.pdf', '.txt']
+
+        if conversion_extension not in valid_extensions:  # Ensure that the inputted new file extension type is valid
+            print("ERROR: Invalid conversion extension")
+            messagebox.showwarning("No files selected", "Please select at least one file.")
+            return  # STOPS function progression if error is detected
+
+        files_to_be_converted = []
+        for file in self.selected_file_list:  # Append the files that were previously selected to add them to the list
+            try:
+                files_to_be_converted.append(file)
+            except Exception as e:
+                print(f"An error occurred: {e}")
+
+        for file in files_to_be_converted:  # Convert the files
+            img = Image.open(file)  # Open the file in question
+            output_file = os.path.splitext(file)[0] + conversion_extension  # Splits the filepath into a tuple where the left side is the filepath and the right side is the file extension
+            img.save(output_file, conversion_extension.replace(".", "").upper() )  # Saves the new converted image with the name and extension selected by the user
+            print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console rs type shit
+
+
+
 if __name__ == "__main__":
     root = ttk.Window(title="Pyfile Converter", themename="united")  # Set initial theme
-    root.geometry("800x600")  # Set window size
+    root.geometry("700x300")  # Set window size
     app = FileConverterApp(root)
     root.mainloop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
