@@ -1,17 +1,15 @@
 TO DO:
 
- - Figure out why the fuck the table showing the files doesn't start on the left fucking side (I spent at least half an hour scouring the code and there is no discernable reason it should be doing that)
-
- - Actually add buttons to change the filetype
-
- - Add a button to start converting
-
  - Optional: Make a loading screen to occupy the user while the program processes the files
 
  - Add a completed screen that pops up after the user converts their imported files and has a clear/back button that goes back to the main menu
         - Ensure that the completed screen shows the original filename and extensions as well as the new ones
 
+- Add .heic to other filetypes to the application
 
+- Add compatibility for text files of several types: .txt, .docx, .pdf
+
+- Add compatibility for video files of several types: .mov, .mp4, .mp3
 
 
  - Figure out what this retarded error is coming from and stop it from happening, UI in any programming language that isn't web based is fucking CANCER:
