@@ -2,9 +2,11 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter.font import Font
 import ttkbootstrap as ttk
-from PIL import Image  # For file conversion
 import os  # For file accessing
-# from ttkbootstrap.constants import *
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from docx2pdf import convert
+from PIL import Image
 
 # Centralized UI color variables
 UI_COLORS = {
@@ -30,6 +32,9 @@ class FileConverterApp:
 
         # Create list for files
         self.selected_file_list = []
+
+        # Establish the valid filetypes
+        self.valid_extensions = ['.jpg', '.jpeg', '.png', '.pdf', '.txt', '.docx', '.csv']
 
         # Initialize the style
         self.style = ttk.Style()
@@ -113,8 +118,7 @@ class FileConverterApp:
         convert_button.pack(side=tk.BOTTOM, pady=10)
 
         # Create the dropdown for filetype selection
-        filetypes = ['.pdf', '.png', '.jpg']  # CHANGE THIS FOR MORE FILE TYPES
-        self.filetype_dropdown = ttk.Combobox(middle_right_frame, textvariable=self.conversion_type_var, values=filetypes, state='readonly')
+        self.filetype_dropdown = ttk.Combobox(middle_right_frame, textvariable=self.conversion_type_var, values=self.valid_extensions, state='readonly')
         self.filetype_dropdown.pack(side=tk.RIGHT, pady=5)
 
         # Create a frame for file listing
@@ -323,11 +327,52 @@ class FileConverterApp:
         self.root_y = self.root.winfo_rooty()
         # print(f"Window moved. New root position: ({self.root_x}, {self.root_y})")
 
+    def text_file_to_pdf(self, text_file_path, output_pdf_path):
+        # Create a canvas object
+        c = canvas.Canvas(output_pdf_path, pagesize=letter)
+        width, height = letter
+
+        # Set the font and size
+        font_name = "Helvetica"
+        font_size = 12
+        c.setFont(font_name, font_size)
+
+        # Define the margin and line height
+        margin = 72  # 1 inch margin
+        line_height = font_size * 1.2  # line height (can be adjusted)
+
+        # Read the text file
+        with open(text_file_path, 'r') as file:
+            text = file.readlines()
+
+        # Calculate the maximum number of lines per page
+        max_lines_per_page = int((height - 2 * margin) / line_height)
+
+        # Draw the text on the PDF
+        y = height - margin
+        for i, line in enumerate(text):
+            if i % max_lines_per_page == 0 and i != 0:
+                c.showPage()  # start a new page
+                c.setFont(font_name, font_size)
+                y = height - margin
+
+            c.drawString(margin, y, line.strip())
+            y -= line_height
+
+        # Save the PDF
+        c.save()
+
+    def docx_to_pdf(self, docx_file_path, output_pdf_path):
+        # Convert the DOCX file to PDF
+        convert(docx_file_path, output_pdf_path)
+
     def convert_file(self, conversion_extension):
         print("SELECTED FILETYPE:", conversion_extension)
-        valid_extensions = ['.jpg', '.jpeg', '.png', '.pdf', '.txt']
+        img_file_extensions  = ['.jpg', '.jpeg', '.png', '.pdf', '.JPG', '.JPEG', '.PNG', '.PDF']
+        text_file_extensions = ['.txt', '.docx', '.TXT', '.DOCX']
+        vid_file_extensions  = ['.mp4', 'mp3', '.mov', '.avi', '.MP4', 'MP3', '.MOV', '.AVI']
 
-        if conversion_extension not in valid_extensions:  # Ensure that the inputted new file extension type is valid
+        if conversion_extension not in self.valid_extensions:  # Ensure that the inputted new file extension type is valid
             print("ERROR: Invalid conversion extension")
             messagebox.showwarning("No files selected", "Please select at least one file.")
             return  # STOPS function progression if error is detected
@@ -340,10 +385,31 @@ class FileConverterApp:
                 print(f"An error occurred: {e}")
 
         for file in files_to_be_converted:  # Convert the files
-            img = Image.open(file)  # Open the file in question
-            output_file = os.path.splitext(file)[0] + conversion_extension  # Splits the filepath into a tuple where the left side is the filepath and the right side is the file extension
-            img.save(output_file, conversion_extension.replace(".", "").upper() )  # Saves the new converted image with the name and extension selected by the user
-            print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console rs type shit
+            currentFileType = os.path.splitext(file)[1]
+            print(currentFileType)
+            if (currentFileType in img_file_extensions) and (conversion_extension not in text_file_extensions):  # image files are handled under this if statement
+                img = Image.open(file)  # Open the file in question
+                output_file = os.path.splitext(file)[0] + conversion_extension  # Splits the filepath into a tuple where the left side is the filepath and the right side is the file extension
+                img.save(output_file, conversion_extension.replace(".", "").upper() )  # Saves the new converted image with the name and extension selected by the user
+                print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console rs type shit
+            elif (currentFileType in img_file_extensions) and (conversion_extension in text_file_extensions):  # Tell user you can't currently do image to text conversions
+                print("Image --> Text conversions are not currently supported, therefore:", file, "was not converted.")
+            elif (currentFileType in vid_file_extensions):  # Tell user you can't do any video conversions
+                print("No types of video files are currently supported, therefore:", file, "was not converted.")
+            elif currentFileType in text_file_extensions:  # Text files are handled under this elif
+                if (conversion_extension == '.pdf' or conversion_extension == '.PDF') and (currentFileType == '.txt' or currentFileType == '.TXT'):  # TXT --> PDF
+                    output_file = os.path.splitext(file)[0] + conversion_extension  # Gets the output file path
+                    self.text_file_to_pdf(file, output_file)
+                    print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
+                elif (conversion_extension == '.pdf' or conversion_extension == '.PDF') and (currentFileType == '.docx' or currentFileType == '.DOCX'):  # TXT --> PDF
+                    output_file = os.path.splitext(file)[0] + conversion_extension  # Gets the output file path
+                    self.docx_to_pdf(file, output_file)
+                    print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
+                else:
+                    print("ERROR: Control flow has failed in the convert_file function! Code: Inner")
+            else:
+                print("ERROR: Control flow has failed in the convert_file function! Code: Outer")
+
 
 
 
