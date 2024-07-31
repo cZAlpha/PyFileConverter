@@ -401,6 +401,10 @@ class FileConverterApp:
                     output_file = os.path.splitext(file)[0] + conversion_extension  # Gets the output file path
                     self.docx_to_pdf(file, output_file)
                     print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
+                elif (conversion_extension == '.txt' or conversion_extension == '.TXT') and (currentFileType == '.docx' or currentFileType == '.DOCX'):  # DOCX --> TXT
+                    print("DOCX --> TXT conversions are not currently supported, therefore:", file, "was not converted.")
+                elif (conversion_extension == '.docx' or conversion_extension == '.DOCX') and (currentFileType == '.txt' or currentFileType == '.TXT'):  # TXT --> DOCX
+                    print("TXT --> DOCX conversions are not currently supported, therefore:", file, "was not converted.")
                 else:
                     print("ERROR: Control flow has failed in the convert_file function! Code: Inner")
             elif (currentFileType in img_file_extensions) and (conversion_extension in text_file_extensions):  # Tell user you can't currently do image to text conversions
