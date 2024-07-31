@@ -392,10 +392,6 @@ class FileConverterApp:
                 output_file = os.path.splitext(file)[0] + conversion_extension  # Splits the filepath into a tuple where the left side is the filepath and the right side is the file extension
                 img.save(output_file, conversion_extension.replace(".", "").upper() )  # Saves the new converted image with the name and extension selected by the user
                 print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console rs type shit
-            elif (currentFileType in img_file_extensions) and (conversion_extension in text_file_extensions):  # Tell user you can't currently do image to text conversions
-                print("Image --> Text conversions are not currently supported, therefore:", file, "was not converted.")
-            elif (currentFileType in vid_file_extensions):  # Tell user you can't do any video conversions
-                print("No types of video files are currently supported, therefore:", file, "was not converted.")
             elif currentFileType in text_file_extensions:  # Text files are handled under this elif
                 if (conversion_extension == '.pdf' or conversion_extension == '.PDF') and (currentFileType == '.txt' or currentFileType == '.TXT'):  # TXT --> PDF
                     output_file = os.path.splitext(file)[0] + conversion_extension  # Gets the output file path
@@ -407,6 +403,10 @@ class FileConverterApp:
                     print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
                 else:
                     print("ERROR: Control flow has failed in the convert_file function! Code: Inner")
+            elif (currentFileType in img_file_extensions) and (conversion_extension in text_file_extensions):  # Tell user you can't currently do image to text conversions
+                print("Image --> Text conversions are not currently supported, therefore:", file, "was not converted.")
+            elif (currentFileType in vid_file_extensions):  # Tell user you can't do any video conversions
+                print("No types of video files are currently supported, therefore:", file, "was not converted.")
             else:
                 print("ERROR: Control flow has failed in the convert_file function! Code: Outer")
 
