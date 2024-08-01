@@ -34,7 +34,7 @@ class FileConverterApp:
         self.selected_file_list = []
 
         # Establish the valid filetypes
-        self.valid_extensions = ['.jpg', '.jpeg', '.png', '.pdf', '.txt', '.docx', '.csv']
+        self.valid_extensions = ['.bmp', '.jpg', '.jpeg', '.png', '.pdf', '.txt', '.docx', '.csv']
 
         # Initialize the style
         self.style = ttk.Style()
@@ -368,9 +368,17 @@ class FileConverterApp:
 
     def convert_file(self, conversion_extension):
         print("SELECTED FILETYPE:", conversion_extension)
-        img_file_extensions  = ['.jpg', '.jpeg', '.png', '.pdf', '.JPG', '.JPEG', '.PNG', '.PDF']
-        text_file_extensions = ['.txt', '.docx', '.TXT', '.DOCX']
-        vid_file_extensions  = ['.mp4', 'mp3', '.mov', '.avi', '.MP4', 'MP3', '.MOV', '.AVI']
+        img_file_extensions  = ['.bmp', '.BMP',
+                                '.jpg', '.JPG',
+                                '.png', '.PNG',
+                                '.pdf', '.PDF',
+                                '.jpeg', '.JPEG']
+        text_file_extensions = ['.txt', '.TXT',
+                                '.docx', '.DOCX']
+        vid_file_extensions  = ['.mp3', '.MP3',
+                                '.mp4', '.MP4',
+                                '.mov', '.MOV',
+                                '.avi', '.AVI']
 
         if conversion_extension not in self.valid_extensions:  # Ensure that the inputted new file extension type is valid
             print("ERROR: Invalid conversion extension")
