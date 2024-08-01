@@ -6,6 +6,8 @@ import os  # For file accessing
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from docx2pdf import convert
+import pandoc
+import pypandoc  # For DOCX -> TXT
 from PIL import Image
 
 # Centralized UI color variables
@@ -410,7 +412,9 @@ class FileConverterApp:
                     self.docx_to_pdf(file, output_file)
                     print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
                 elif (conversion_extension == '.txt' or conversion_extension == '.TXT') and (currentFileType == '.docx' or currentFileType == '.DOCX'):  # DOCX --> TXT
-                    print("DOCX --> TXT conversions are not currently supported, therefore:", file, "was not converted.")
+                    output_file = os.path.splitext(file)[0] + conversion_extension
+                    pypandoc.convert_file(file, 'plain', outputfile=output_file + conversion_extension)
+                    print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
                 elif (conversion_extension == '.docx' or conversion_extension == '.DOCX') and (currentFileType == '.txt' or currentFileType == '.TXT'):  # TXT --> DOCX
                     print("TXT --> DOCX conversions are not currently supported, therefore:", file, "was not converted.")
                 else:
