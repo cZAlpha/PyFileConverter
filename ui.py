@@ -6,9 +6,10 @@ import os  # For file accessing
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from docx2pdf import convert
-import pandoc
 import pypandoc  # For DOCX -> TXT
 from PIL import Image
+from docx import Document
+import re
 
 # Centralized UI color variables
 UI_COLORS = {
@@ -224,7 +225,6 @@ class FileConverterApp:
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
     def set_theme(self, theme_name):
-        print("Theme change: " + str(theme_name))
         self.style.theme_use(theme_name)
         self.current_theme = theme_name
 
@@ -369,7 +369,7 @@ class FileConverterApp:
         convert(docx_file_path, output_pdf_path)
 
     def convert_file(self, conversion_extension):
-        print("SELECTED FILETYPE:", conversion_extension)
+        # START - Scope Vars
         img_file_extensions  = ['.bmp', '.BMP',
                                 '.jpg', '.JPG',
                                 '.png', '.PNG',
@@ -381,6 +381,7 @@ class FileConverterApp:
                                 '.mp4', '.MP4',
                                 '.mov', '.MOV',
                                 '.avi', '.AVI']
+        # STOP - Scope Vars
 
         if conversion_extension not in self.valid_extensions:  # Ensure that the inputted new file extension type is valid
             print("ERROR: Invalid conversion extension")
@@ -395,15 +396,20 @@ class FileConverterApp:
                 print(f"An error occurred: {e}")
 
         for file in files_to_be_converted:  # Convert the files
-            currentFileType = os.path.splitext(file)[1]
-            print(currentFileType)
+            currentFileType = os.path.splitext(file)[1]  # The current file's extension
+
+
             if (currentFileType in img_file_extensions) and (conversion_extension not in text_file_extensions):  # image files are handled under this if statement
+                if currentFileType == conversion_extension:  # Check if the current filetype is the same as the conversion extension
+                    print("The filetype of", file, "matches the current selected conversion type and therefore was not converted.")
                 img = Image.open(file)  # Open the file in question
                 output_file = os.path.splitext(file)[0] + conversion_extension  # Splits the filepath into a tuple where the left side is the filepath and the right side is the file extension
                 img.save(output_file, conversion_extension.replace(".", "").upper() )  # Saves the new converted image with the name and extension selected by the user
                 print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console rs type shit
             elif currentFileType in text_file_extensions:  # Text files are handled under this elif
-                if (conversion_extension == '.pdf' or conversion_extension == '.PDF') and (currentFileType == '.txt' or currentFileType == '.TXT'):  # TXT --> PDF
+                if currentFileType == conversion_extension:  # Check if the current filetype is the same as the conversion extension
+                    print("The filetype of", file, "matches the current selected conversion type and therefore was not converted.")
+                elif (conversion_extension == '.pdf' or conversion_extension == '.PDF') and (currentFileType == '.txt' or currentFileType == '.TXT'):  # TXT --> PDF
                     output_file = os.path.splitext(file)[0] + conversion_extension  # Gets the output file path
                     self.text_file_to_pdf(file, output_file)
                     print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
@@ -416,7 +422,15 @@ class FileConverterApp:
                     pypandoc.convert_file(file, 'plain', outputfile=output_file + conversion_extension)
                     print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
                 elif (conversion_extension == '.docx' or conversion_extension == '.DOCX') and (currentFileType == '.txt' or currentFileType == '.TXT'):  # TXT --> DOCX
-                    print("TXT --> DOCX conversions are not currently supported, therefore:", file, "was not converted.")
+                    output_file = os.path.splitext(file)[0] + conversion_extension
+                    document = Document()
+                    with open(file, 'r', encoding='utf-8') as myfile:
+                        myfile_content = myfile.read()
+                    myfile_content = re.sub(r'[^\x00-\x7F]+|\x0c', ' ', myfile_content)  # Remove all non-XML-compatible characters
+                    document.add_heading(os.path.basename(file), 0)
+                    document.add_paragraph(myfile_content)
+                    document.save(output_file)
+                    print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
                 else:
                     print("ERROR: Control flow has failed in the convert_file function! Code: Inner")
             elif (currentFileType in img_file_extensions) and (conversion_extension in text_file_extensions):  # Tell user you can't currently do image to text conversions
