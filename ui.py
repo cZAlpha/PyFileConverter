@@ -37,7 +37,7 @@ class FileConverterApp:
         self.selected_file_list = []
         
         # Establish the valid filetypes
-        self.valid_extensions = ['.bmp', '.jpg', '.jpeg', '.png', '.pdf', '.txt', '.docx', '.csv']
+        self.valid_extensions = ['.bmp', '.jpg', '.jpeg', '.png', '.heic', '.pdf', '.txt', '.docx', '.csv']
         
         # Initialize the style
         self.style = ttk.Style()
@@ -247,8 +247,7 @@ class FileConverterApp:
         )
         return file_paths
     
-    def convert_file_type(self, file_path, new_extension):
-        # Simulate file conversion process (for demo purposes)
+    def convert_file_type(self, file_path, new_extension): # Simulate file conversion process (for demo purposes)    
         return f"{file_path}.{new_extension}"
     
     def getFileName(self, str=""):
@@ -272,6 +271,13 @@ class FileConverterApp:
     def on_convert(self):  # THIS FUNCTION DOES NOT CONVERT ANYTHING BUT RATHER HANDLES FILE SELECTION!!!
         # Obtain the currently selected files from the user
         files = self.select_files()
+        
+        for file in files: 
+            currentFileType = os.path.splitext(file)[1]  # The current file's extension
+            if currentFileType not in self.valid_extensions: # If the current file's extension is not valid
+                print(f"ERROR: Selected file: {os.path.basename(file)} has unsupported filetype!")
+                messagebox.showwarning("Error", f"Selected file: {os.path.basename(file)} has unsupported filetype!")
+                return
         
         for file in files:  # Save it to the list!
             self.selected_file_list.append(file)
@@ -321,12 +327,12 @@ class FileConverterApp:
         # Delete the internal selected file list to fully clear everything
         self.selected_file_list = []
     
-    def on_configure(self, event):
+    def on_configure(self, event): # DO NOT REMOVE 'event' FROM THE ARGS, IT CRASHES ENTIRE PROGRAM!!!
         self.root.update_idletasks()
         self.root_x = self.root.winfo_rootx()
         self.root_y = self.root.winfo_rooty()
         # print(f"Window moved. New root position: ({self.root_x}, {self.root_y})")
-        
+    
     def text_file_to_pdf(self, text_file_path, output_pdf_path):
         # Create a canvas object
         c = canvas.Canvas(output_pdf_path, pagesize=letter)
@@ -372,7 +378,8 @@ class FileConverterApp:
                                 '.jpg', '.JPG',
                                 '.png', '.PNG',
                                 '.pdf', '.PDF',
-                                '.jpeg', '.JPEG']
+                                '.jpeg', '.JPEG'
+                                '.heic']
         text_file_extensions = ['.txt', '.TXT',
                                 '.docx', '.DOCX']
         vid_file_extensions  = ['.mp3', '.MP3',
@@ -381,9 +388,10 @@ class FileConverterApp:
                                 '.avi', '.AVI']
         # STOP - Scope Vars
         
-        if conversion_extension not in self.valid_extensions:  # Ensure that the inputted new file extension type is valid
+        # Error check for valid file extension
+        if conversion_extension not in self.valid_extensions:
             print("ERROR: Invalid conversion extension")
-            messagebox.showwarning("No files selected", "Please select at least one file.")
+            messagebox.showwarning("Error", "Invalid conversion extension was selected.")
             return  # STOPS function progression if error is detected
         
         files_to_be_converted = []
@@ -434,7 +442,8 @@ class FileConverterApp:
                 print("Image --> Text conversions are not currently supported, therefore:", file, "was not converted.")
             elif (currentFileType in vid_file_extensions):  # Tell user you can't do any video conversions
                 print("No types of video files are currently supported, therefore:", file, "was not converted.")
-            else:
+            else: # Catch for unsupported filetypes
+                messagebox.showwarning("Error", "The file you have uploaded and selected for conversion's filetype is not supported.")
                 print("ERROR: Control flow has failed in the convert_file function! Code: Outer")
 
 
