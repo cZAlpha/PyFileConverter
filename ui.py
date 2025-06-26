@@ -354,8 +354,6 @@ class FileConverterApp:
         # Clear existing entries AND their delete buttons in the Treeview
         self.clear_all_entries()
         
-        print("=============================================")
-        print(f"on_file_import has been called")
         files = self.select_files() # Obtain the currently selected files from the user
         
         # Error check for import of unsupported filetypes
@@ -429,10 +427,6 @@ class FileConverterApp:
             # Place widgets immediately after Treeview updates
             self.file_list.update_idletasks()
             self._place_widgets(item_id)
-        
-        print(f"selected_file_list: {self.selected_file_list}")
-        print(f"file_list: ", self.file_list.get_children())
-        print("=============================================")
     
     def clear_all_entries(self):
         print("clear_all_entries was called")
@@ -542,11 +536,6 @@ class FileConverterApp:
     
     def convert_all_files(self):
         """Convert all files based on their individual dropdown selections"""
-        print("==================================================")
-        print(f"convert_all_files function has been called")
-        print(f"selected_file_list: {self.selected_file_list}")
-        print(f"file_list: {self.file_list.get_children()}")
-        print("==================================================")
         if not self.selected_file_list:
             messagebox.showwarning("Error", "No files to convert.")
             return
@@ -587,7 +576,7 @@ class FileConverterApp:
         if converted_count > 0:
             messagebox.showinfo("Success", f"Successfully converted {converted_count} file(s).")
         else:
-            messagebox.showwarning("Warning", "No files were converted. Please select output filetypes.")
+            messagebox.showwarning("Warning", "No files were converted. Please select output filetypes. This could be because you tried to convert a filetype to the same filetype.")
     
     def convert_single_file(self, file_path, conversion_extension):
         """Convert a single file and return the output path"""
@@ -600,13 +589,36 @@ class FileConverterApp:
             img_file_extensions = ['.bmp', '.jpg', '.jpeg', '.png', '.heic', '.pdf']
             text_file_extensions = ['.txt', '.docx']
             
+            # Image file conversions
             if currentFileType.lower() in [ext.lower() for ext in img_file_extensions]:
+                # If the desired filetype to convert to is not a valid text file extension
                 if conversion_extension.lower() not in [ext.lower() for ext in text_file_extensions]:
-                    if currentFileType.lower() == conversion_extension.lower():
-                        return None  # Same format, no conversion needed
+                    if currentFileType.lower() == conversion_extension.lower(): # Same format, no conversion needed
+                        return None  
                     
+                    format_map = { # Establishes formatting mapping to make sure PIL gets the right input from the user's selected filetype
+                        '.jpg': 'JPEG',
+                        '.jpeg': 'JPEG',
+                        '.png': 'PNG',
+                        '.bmp': 'BMP',
+                        '.heic': 'HEIC', # Requires pillow-heif
+                        '.pdf': 'PDF'
+                    }
                     img = Image.open(file_path)
-                    img.save(output_file, conversion_extension.replace(".", "").upper())
+                    
+                    # If converting to JPG/JPEG and the image has transparency (RGBA), convert to RGB first
+                    if conversion_extension.lower() in ('.jpg', '.jpeg') and img.mode in ('RGBA', 'LA'):
+                        img = img.convert('RGB')  # Remove alpha channel
+                    
+                    # Handle HEIC ↔ Other Formats
+                    if currentFileType.lower() == '.heic' or conversion_extension.lower() == '.heic':
+                        try:
+                            from pillow_heif import register_heif_opener
+                            register_heif_opener()  # Enable HEIC support in PIL
+                        except ImportError:
+                            raise ImportError("HEIC conversion requires 'pillow-heif'. Install with: pip install pillow-heif")
+                    
+                    img.save(output_file, format=format_map.get(conversion_extension.lower(), 'JPEG'))
                     return output_file
             
             # Text file conversions
@@ -614,7 +626,8 @@ class FileConverterApp:
                 if currentFileType.lower() == conversion_extension.lower():
                     return None  # Same format, no conversion needed
                 
-                if conversion_extension.lower() == '.pdf':
+                # From TXT or DOCX -> PDF
+                if conversion_extension.lower() == '.pdf': 
                     if currentFileType.lower() == '.txt':
                         self.text_file_to_pdf(file_path, output_file)
                         return output_file
@@ -622,10 +635,12 @@ class FileConverterApp:
                         self.docx_to_pdf(file_path, output_file)
                         return output_file
                 
+                # From TXT -> DOCX
                 elif conversion_extension.lower() == '.txt' and currentFileType.lower() == '.docx':
                     pypandoc.convert_file(file_path, 'plain', outputfile=output_file)
                     return output_file
                 
+                # From DOCX -> TXT
                 elif conversion_extension.lower() == '.docx' and currentFileType.lower() == '.txt':
                     document = Document()
                     with open(file_path, 'r', encoding='utf-8') as myfile:
@@ -639,7 +654,7 @@ class FileConverterApp:
             return None
             
         except Exception as e:
-            print(f"Error converting {file_path}: {e}")
+            print(f"Error converting file {file_path}: {e}")
             messagebox.showerror("Error", f"Failed to convert {os.path.basename(file_path)}: {str(e)}")
             return None
     
