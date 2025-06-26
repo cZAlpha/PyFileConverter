@@ -77,8 +77,8 @@ class FileConverterApp:
         # Set initial theme
         self.set_theme(self.current_theme)
         
-        # # Dictionary to store delete buttons with their item IDs
-        # self.delete_buttons = {}
+        # Dictionary to store delete buttons with their item IDs
+        self.delete_buttons = {}
         
         # Bind the resizing of the window and allat
         self.root.bind('<Configure>', self.on_configure)
@@ -250,7 +250,7 @@ class FileConverterApp:
     def convert_file_type(self, file_path, new_extension): # Simulate file conversion process (for demo purposes)    
         return f"{file_path}.{new_extension}"
     
-    def getFileName(self, str=""):
+    def get_file_name(self, str=""):
         if str == "":
             print("ERROR: Input string empty")
             return
@@ -268,33 +268,78 @@ class FileConverterApp:
                 returnStr = str[lastSlash + 1:]
                 return returnStr
     
-    def on_convert(self):  # THIS FUNCTION DOES NOT CONVERT ANYTHING BUT RATHER HANDLES FILE SELECTION!!!
-        # Obtain the currently selected files from the user
-        files = self.select_files()
+    def delete_single_row(self, item_id):
+        """Delete a row and its associated delete button"""
+        print(f"Attempting to delete item_id: {item_id} (type: {type(item_id)})")
+        print(f"Current delete_buttons keys: {self.delete_buttons.keys()}")
+        item_id = str(item_id) # Convert item_id to string to ensure consistency
+        # 1. Remove the delete button if it exists
+        if item_id in self.delete_buttons:
+            btn = self.delete_buttons[item_id]
+            btn.place_forget()  # First remove from display
+            btn.destroy()       # Then destroy completely
+            del self.delete_buttons[item_id]
         
-        for file in files: 
+        # 2. Delete the row from Treeview
+        self.file_list.delete(item_id)
+        
+        # 3. Update numbering of remaining rows
+        for index, child in enumerate(self.file_list.get_children(), start=1):
+            current_values = list(self.file_list.item(child, 'values'))
+            current_values[0] = index  # Update the number in first column
+            self.file_list.item(child, values=current_values)
+        
+        # 4. Remove from internal file list (if used)
+        if hasattr(self, 'selected_file_list'):
+            try:
+                del self.selected_file_list[int(item_id[1:])-1]
+            except (IndexError, ValueError):
+                pass
+        
+        # 5. Force GUI update
+        self.file_list.update_idletasks()
+    
+    def _place_delete_button(self, item_id):
+        """Place the delete button after the row is rendered."""
+        try:
+            bbox = self.file_list.bbox(item_id)
+            if bbox is None:  # Item not yet rendered
+                self.root.after(50, lambda: self._place_delete_button(item_id))
+                return
+                
+            x, y, width, height = bbox
+            delete_btn = self.delete_buttons[item_id]  # Get existing button
+            # Position relative to the file_list_frame, not absolute coordinates
+            delete_btn.place(x=self.file_list.winfo_width() - 40, y=y + self.file_list.winfo_y())
+        except (tk.TclError, KeyError) as e:
+            print(f"Failed to place button for {item_id}: {e}")
+    
+    def on_convert(self):  # THIS FUNCTION DOES NOT CONVERT ANYTHING BUT RATHER HANDLES FILE SELECTION!!!
+        files = self.select_files() # Obtain the currently selected files from the user
+        
+        for file in files: # Iterate through all added files
             currentFileType = os.path.splitext(file)[1]  # The current file's extension
             if currentFileType not in self.valid_extensions: # If the current file's extension is not valid
                 print(f"ERROR: Selected file: {os.path.basename(file)} has unsupported filetype!")
                 messagebox.showwarning("Error", f"Selected file: {os.path.basename(file)} has unsupported filetype!")
                 return
         
-        for file in files:  # Save it to the list!
+        for file in files:  # Save all uploaded files to the internal list
             self.selected_file_list.append(file)
         
         # String cut the filepath to only include the filename and the file extensions
         
-        if ( len(files) > 10 ):
-            messagebox.showwarning("Too Many Files Selected", "Please select no more than 10 files.")
+        if ( len(files) > 10 ): # Error check for too many files at once
+            messagebox.showwarning("Error", "Please select no more than 10 files for upload.")
             return
         
         if not files:
-            messagebox.showwarning("No files selected", "Please select at least one file.")
+            messagebox.showwarning("Error", "Please select at least one file.")
             return
         
         conversion_type = self.conversion_type_var.get()
         if not conversion_type:
-            messagebox.showwarning("No conversion type", "Please select a conversion type.")
+            messagebox.showwarning("Error", "Please select a conversion type.")
             return
         
         results = {file: self.convert_file_type(file, conversion_type) for file in files}
@@ -303,28 +348,39 @@ class FileConverterApp:
         for item in self.file_list.get_children():
             self.file_list.delete(item)
         
-        # DELETE ALL DELETE BUTTONS BC THIS PROCESS DELETES ALL PREVIOUS ENTRIES INTO THE TABLE/LIST
-        # Remove the delete buttons
-        # listOfDeleteButtonIDs = []
-        # for item_id in self.delete_buttons:
-        #     print("Delete Button ID:", item_id, "will be destroyed...")
-        #     listOfDeleteButtonIDs.append(item_id)  # Append the current item ID into the list that contains which buttons to delete
-        # for deleteButton in listOfDeleteButtonIDs:
-        #     self.delete_buttons[deleteButton].destroy()
-        #     del self.delete_buttons[deleteButton]
-        
         # Add new entries to the Treeview
         for idx, (file, new_file) in enumerate(results.items(), start=1):  # VERY IMPORTANT: THE LOOP THAT POPULATES THE TABLE IN THE UI
-            item_id = self.file_list.insert("", "end", values=(idx, self.getFileName(file), "Select Filetype"))
+            item_id = self.file_list.insert("", "end", values=(idx, self.get_file_name(file), "Select Filetype"))
             
-            # # Add a delete button aligned with the row
-            # self.create_delete_button(item_id)
+            # Create delete button
+            delete_btn = ttk.Button(
+                self.file_list_frame,
+                text="❌",
+                command=lambda id=item_id: self.delete_single_row(id),
+                style='danger.TButton',
+                width=2
+            )
+            
+            # Store button reference
+            self.delete_buttons[item_id] = delete_btn
+            
+            # Place button immediately after Treeview updates
+            self.file_list.update_idletasks()
+            self._place_delete_button(item_id)
+        
+        print(f"File List: ", self.file_list.get_children())
     
     def clear_all_entries(self):
-        for item in self.file_list.get_children():  # Deletes it out of the UI
+        # Clear all delete buttons first
+        for button in self.delete_buttons.values():
+            button.destroy()
+        self.delete_buttons.clear()
+        
+        # Then clear the treeview
+        for item in self.file_list.get_children():
             self.file_list.delete(item)
         
-        # Delete the internal selected file list to fully clear everything
+        # Delete the internal selected file list
         self.selected_file_list = []
     
     def on_configure(self, event): # DO NOT REMOVE 'event' FROM THE ARGS, IT CRASHES ENTIRE PROGRAM!!!
