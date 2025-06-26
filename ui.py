@@ -134,7 +134,7 @@ class FileConverterApp:
         self.file_list.heading("No", text="#", anchor="e")  # Number of files heading
         self.file_list.heading("File Name", text="File Name", anchor="w")  # File name heading
         self.file_list.heading("Additional Info", text="Output Filetype", anchor="w")  # Additional information heading
-        self.file_list.column("No", width=10, anchor="e")  # Number of files column
+        self.file_list.column("No", width=30, minwidth=20, anchor="e", stretch=False)  # Number of files column
         self.file_list.column("File Name", width=50, anchor="w")  # File name column
         self.file_list.column("Additional Info", width=50, anchor="w")  # Additional information column
         
