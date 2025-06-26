@@ -344,9 +344,8 @@ class FileConverterApp:
         
         results = {file: self.convert_file_type(file, conversion_type) for file in files}
         
-        # Clear existing entries in the Treeview
-        for item in self.file_list.get_children():
-            self.file_list.delete(item)
+        # Clear existing entries AND their delete buttons in the Treeview
+        self.clear_all_entries()
         
         # Add new entries to the Treeview
         for idx, (file, new_file) in enumerate(results.items(), start=1):  # VERY IMPORTANT: THE LOOP THAT POPULATES THE TABLE IN THE UI
@@ -371,6 +370,9 @@ class FileConverterApp:
         print(f"File List: ", self.file_list.get_children())
     
     def clear_all_entries(self):
+        """
+        Clears all uploaded files AND their delete buttons
+        """
         # Clear all delete buttons first
         for button in self.delete_buttons.values():
             button.destroy()
