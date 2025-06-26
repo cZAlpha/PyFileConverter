@@ -319,7 +319,7 @@ class FileConverterApp:
         
         for file in files: # Iterate through all added files
             currentFileType = os.path.splitext(file)[1]  # The current file's extension
-            if currentFileType not in self.valid_extensions: # If the current file's extension is not valid
+            if currentFileType.lower() not in self.valid_extensions: # If the current file's extension is not valid
                 print(f"ERROR: Selected file: {os.path.basename(file)} has unsupported filetype!")
                 messagebox.showwarning("Error", f"Selected file: {os.path.basename(file)} has unsupported filetype!")
                 return
