@@ -4,6 +4,7 @@ docx==0.2.4
 docx2pdf==0.1.8
 lxml==6.0.0
 pillow==10.4.0
+pillow_heif==0.22.0
 pypandoc==1.15
 reportlab==4.4.2
 tqdm==4.67.1

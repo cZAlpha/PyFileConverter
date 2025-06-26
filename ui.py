@@ -54,6 +54,12 @@ class FileConverterApp:
         self.custom_font_title = Font(family="Miracode", size=16)  # Customize as needed
         
         # Define styles for buttons and radiobuttons
+        self.style.configure('Delete.TButton',
+                    background=UI_COLORS['primary'],  # Match your main button color
+                    bordercolor=UI_COLORS['primary'],  # Match border to background
+                    borderwidth=1,
+                    relief='flat',
+                    focuscolor=UI_COLORS['primary'])  # Match focus color
         self.style.configure('Custom.TButton', font=self.custom_font, background=UI_COLORS['primary'],
                             foreground=UI_COLORS['light'])
         self.style.map('Custom.TButton', background=[('active', UI_COLORS['secondary'])])
@@ -393,7 +399,7 @@ class FileConverterApp:
                 self.file_list_frame,
                 text="❌",
                 command=lambda id=item_id: self.delete_single_row(id),
-                style='danger.TButton',
+                style='Delete.TButton',
                 width=2
             )
             
