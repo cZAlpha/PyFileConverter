@@ -10,6 +10,9 @@ import pypandoc  # For DOCX -> TXT
 from PIL import Image
 from docx import Document
 import re
+import tempfile
+import shutil
+from tkinter import ttk as tk_ttk
 
 # Centralized UI color variables
 UI_COLORS = {
@@ -29,6 +32,10 @@ class FileConverterApp:
     def __init__(self, root):
         self.root = root
         self.current_theme = "united"  # Default theme
+        
+        # Create temporary directory for converted files
+        self.temp_dir = tempfile.mkdtemp()
+        self.converted_files = {}  # Store mapping of original file to converted file path
         
         # Set the application icon
         self.root.iconphoto(False, tk.PhotoImage(file="assets/app_icon/png/pyfileconverter_icon.png"))
@@ -111,35 +118,45 @@ class FileConverterApp:
         middle_right_frame.grid(row=1, column=2, padx=(0, 40), pady=10, sticky="ne")
         
         # Create the Import button
-        import_button = ttk.Button(middle_right_frame, text="Import Files", command=self.on_convert,
+        import_button = ttk.Button(middle_right_frame, text="Import Files", command=self.on_file_import,
                                     style='Custom.TButton')
         import_button.pack(side=tk.TOP, pady=10)
         
         # Create the Convert button
-        convert_button = ttk.Button(middle_right_frame, text="Convert Files", command=lambda: self.convert_file(self.conversion_type_var.get()),
+        convert_button = ttk.Button(middle_right_frame, text="Convert Files", command=self.convert_all_files,
                                     style='Custom.TButton')
-        convert_button.pack(side=tk.BOTTOM, pady=10)
+        convert_button.pack(side=tk.TOP, pady=5)
         
-        # Create the dropdown for filetype selection
-        self.filetype_dropdown = ttk.Combobox(middle_right_frame, textvariable=self.conversion_type_var, values=self.valid_extensions, state='readonly')
-        self.filetype_dropdown.pack(side=tk.RIGHT, pady=5)
+        # Create the Download All button
+        download_all_button = ttk.Button(middle_right_frame, text="Download All", command=self.download_all_files,
+                                        style='success.TButton')
+        download_all_button.pack(side=tk.BOTTOM, pady=5)
         
         # Create a frame for file listing
         self.file_list_frame = ttk.Frame(self.main_frame)
         self.file_list_frame.grid(row=1, column=0, columnspan=2, pady=10, padx=10, sticky="nsew")
         
         # Create Treeview for file list
-        self.file_list = ttk.Treeview(self.file_list_frame, columns=("No", "File Name", "Additional Info"),
-                                    show="headings")
-        self.file_list.heading("No", text="#", anchor="e")  # Number of files heading
-        self.file_list.heading("File Name", text="File Name", anchor="w")  # File name heading
-        self.file_list.heading("Additional Info", text="Output Filetype", anchor="w")  # Additional information heading
-        self.file_list.column("No", width=30, minwidth=20, anchor="e", stretch=False)  # Number of files column
-        self.file_list.column("File Name", width=50, anchor="w")  # File name column
-        self.file_list.column("Additional Info", width=50, anchor="w")  # Additional information column
+        self.file_list = ttk.Treeview(self.file_list_frame, columns=("No", "File Name", "Additional Info", 
+                                                                    "Download", "Delete"),
+                                                            show="headings")
+        self.file_list.heading("#1", text="#", anchor="e")  # Number of files heading
+        self.file_list.heading("#2", text="File Name", anchor="w")  # File name heading
+        self.file_list.heading("#3", text="Output Filetype", anchor="w")  # Additional information heading
+        self.file_list.heading("#4", text="Download", anchor="w")  # Download column heading
+        self.file_list.heading("#5", text="Delete", anchor="w")  # Delete column heading
+        self.file_list.column("#1", width=30, minwidth=20, anchor="e", stretch=False)  # Number of files column
+        self.file_list.column("#2", width=200, anchor="w")  # File name column
+        self.file_list.column("#3", width=150, anchor="w")  # Additional information column
+        self.file_list.column("#4", width=100, anchor="w")  # Download column
+        self.file_list.column("#5", width=60, anchor="w")  # Delete column
         
         # Pack the Treeview with padding on the right side
         self.file_list.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)  # Add 20px padding on the right side
+        
+        # Dictionary to store dropdown widgets and download buttons
+        self.dropdown_widgets = {}
+        self.download_buttons = {}
         
         # Configure grid column weights to ensure proper alignment
         self.main_frame.grid_columnconfigure(0, weight=0, minsize=10)  # Skinny leftmost column
@@ -269,54 +286,79 @@ class FileConverterApp:
                 return returnStr
     
     def delete_single_row(self, item_id):
-        """Delete a row and its associated delete button"""
+        """Delete a row and its associated widgets"""
         print(f"Attempting to delete item_id: {item_id} (type: {type(item_id)})")
-        print(f"Current delete_buttons keys: {self.delete_buttons.keys()}")
         item_id = str(item_id) # Convert item_id to string to ensure consistency
+        
         # 1. Remove the delete button if it exists
         if item_id in self.delete_buttons:
             btn = self.delete_buttons[item_id]
-            btn.place_forget()  # First remove from display
-            btn.destroy()       # Then destroy completely
+            btn.place_forget()
+            btn.destroy()
             del self.delete_buttons[item_id]
         
-        # 2. Delete the row from Treeview
+        # 2. Remove the dropdown widget if it exists
+        if item_id in self.dropdown_widgets:
+            dropdown = self.dropdown_widgets[item_id]
+            dropdown.place_forget()
+            dropdown.destroy()
+            del self.dropdown_widgets[item_id]
+        
+        # 3. Remove the download button if it exists
+        if item_id in self.download_buttons:
+            btn = self.download_buttons[item_id]
+            btn.place_forget()
+            btn.destroy()
+            del self.download_buttons[item_id]
+        
+        # 4. Delete the row from Treeview
         self.file_list.delete(item_id)
-        
-        # 3. Update numbering of remaining rows
-        for index, child in enumerate(self.file_list.get_children(), start=1):
-            current_values = list(self.file_list.item(child, 'values'))
-            current_values[0] = index  # Update the number in first column
-            self.file_list.item(child, values=current_values)
-        
-        # 4. Remove from internal file list (if used)
-        if hasattr(self, 'selected_file_list'):
-            try:
-                del self.selected_file_list[int(item_id[1:])-1]
-            except (IndexError, ValueError):
-                pass
-        
-        # 5. Force GUI update
-        self.file_list.update_idletasks()
     
-    def _place_delete_button(self, item_id):
-        """Place the delete button after the row is rendered."""
+    def _place_widgets(self, item_id):
+        """Place the widgets after the row is rendered."""
         try:
             bbox = self.file_list.bbox(item_id)
             if bbox is None:  # Item not yet rendered
-                self.root.after(50, lambda: self._place_delete_button(item_id))
+                self.root.after(50, lambda: self._place_widgets(item_id))
                 return
                 
             x, y, width, height = bbox
-            delete_btn = self.delete_buttons[item_id]  # Get existing button
-            # Position relative to the file_list_frame, not absolute coordinates
-            delete_btn.place(x=self.file_list.winfo_width() - 40, y=y + self.file_list.winfo_y())
+            
+            # Get column positions
+            col_positions = []
+            for col in ["#1", "#2", "#3", "#4", "#5"]:
+                col_bbox = self.file_list.bbox(item_id, col)
+                if col_bbox:
+                    col_positions.append(col_bbox[0])
+            
+            if len(col_positions) >= 5:
+                # Place dropdown in "Additional Info" column
+                dropdown = self.dropdown_widgets[item_id]
+                dropdown.place(x=col_positions[2] + self.file_list.winfo_x(), 
+                            y=y + self.file_list.winfo_y() + 2)
+                
+                # Place download button in "Download" column
+                download_btn = self.download_buttons[item_id]
+                download_btn.place(x=col_positions[3] + self.file_list.winfo_x(), 
+                                y=y + self.file_list.winfo_y() + 2)
+                
+                # Place delete button in "Delete" column
+                delete_btn = self.delete_buttons[item_id]
+                delete_btn.place(x=col_positions[4] + self.file_list.winfo_x(), 
+                                y=y + self.file_list.winfo_y() + 2)
+        
         except (tk.TclError, KeyError) as e:
-            print(f"Failed to place button for {item_id}: {e}")
+            print(f"Failed to place widgets for {item_id}: {e}")
     
-    def on_convert(self):  # THIS FUNCTION DOES NOT CONVERT ANYTHING BUT RATHER HANDLES FILE SELECTION!!!
+    def on_file_import(self):  # THIS FUNCTION DOES NOT CONVERT ANYTHING BUT RATHER HANDLES FILE SELECTION!!!
+        # Clear existing entries AND their delete buttons in the Treeview
+        self.clear_all_entries()
+        
+        print("=============================================")
+        print(f"on_file_import has been called")
         files = self.select_files() # Obtain the currently selected files from the user
         
+        # Error check for import of unsupported filetypes
         for file in files: # Iterate through all added files
             currentFileType = os.path.splitext(file)[1]  # The current file's extension
             if currentFileType.lower() not in self.valid_extensions: # If the current file's extension is not valid
@@ -344,12 +386,9 @@ class FileConverterApp:
         
         results = {file: self.convert_file_type(file, conversion_type) for file in files}
         
-        # Clear existing entries AND their delete buttons in the Treeview
-        self.clear_all_entries()
-        
         # Add new entries to the Treeview
         for idx, (file, new_file) in enumerate(results.items(), start=1):  # VERY IMPORTANT: THE LOOP THAT POPULATES THE TABLE IN THE UI
-            item_id = self.file_list.insert("", "end", values=(idx, self.get_file_name(file), "Select Filetype"))
+            item_id = self.file_list.insert("", "end", values=(idx, self.get_file_name(file), "Select Filetype", "", ""))
             
             # Create delete button
             delete_btn = ttk.Button(
@@ -360,23 +399,57 @@ class FileConverterApp:
                 width=2
             )
             
-            # Store button reference
-            self.delete_buttons[item_id] = delete_btn
+            # Create dropdown for file type selection
+            dropdown_var = tk.StringVar(value="Select Filetype")
+            dropdown = ttk.Combobox(
+                self.file_list_frame,
+                textvariable=dropdown_var,
+                values=self.valid_extensions,
+                state='readonly',
+                width=12
+            )
+            # Binding that triggers when the user selects a new dropdown menu value
+            dropdown.bind('<<ComboboxSelected>>', lambda event, id=item_id: self.on_dropdown_change(event, id))
             
-            # Place button immediately after Treeview updates
+            # Create download button (initially disabled)
+            download_btn = ttk.Button(
+                self.file_list_frame,
+                text="Download",
+                command=lambda f=file, id=item_id: self.download_single_file(f, id),
+                style='info.TButton',
+                width=8,
+                state='disabled'
+            )
+            
+            # Store widget references
+            self.delete_buttons[item_id] = delete_btn
+            self.dropdown_widgets[item_id] = dropdown
+            self.download_buttons[item_id] = download_btn
+            
+            # Place widgets immediately after Treeview updates
             self.file_list.update_idletasks()
-            self._place_delete_button(item_id)
+            self._place_widgets(item_id)
         
-        print(f"File List: ", self.file_list.get_children())
+        print(f"selected_file_list: {self.selected_file_list}")
+        print(f"file_list: ", self.file_list.get_children())
+        print("=============================================")
     
     def clear_all_entries(self):
+        print("clear_all_entries was called")
         """
-        Clears all uploaded files AND their delete buttons
+        Clears all uploaded files AND their widgets
         """
-        # Clear all delete buttons first
+        # Clear all widgets first
         for button in self.delete_buttons.values():
             button.destroy()
+        for dropdown in self.dropdown_widgets.values():
+            dropdown.destroy()
+        for button in self.download_buttons.values():
+            button.destroy()
+            
         self.delete_buttons.clear()
+        self.dropdown_widgets.clear()
+        self.download_buttons.clear()
         
         # Then clear the treeview
         for item in self.file_list.get_children():
@@ -384,12 +457,49 @@ class FileConverterApp:
         
         # Delete the internal selected file list
         self.selected_file_list = []
+        self.converted_files.clear()
     
     def on_configure(self, event): # DO NOT REMOVE 'event' FROM THE ARGS, IT CRASHES ENTIRE PROGRAM!!!
         self.root.update_idletasks()
         self.root_x = self.root.winfo_rootx()
         self.root_y = self.root.winfo_rooty()
         # print(f"Window moved. New root position: ({self.root_x}, {self.root_y})")
+    
+    def on_dropdown_change(self, event, item_id):
+        """Handle dropdown selection change - reset conversion state"""
+        dropdown = event.widget
+        selected_value = dropdown.get()
+        print(f"Dropdown for item {item_id} changed to: {selected_value}")
+        
+        # Reset the conversion state for this item
+        self.reset_item_conversion_state(item_id)
+    
+    def reset_item_conversion_state(self, item_id):
+        """Reset conversion state for a specific item"""
+        # Disable the download button
+        if item_id in self.download_buttons:
+            self.download_buttons[item_id].configure(state='disabled')
+        
+        # Find and remove the converted file from converted_files dict
+        # We need to find which original file corresponds to this item_id
+        values = self.file_list.item(item_id, 'values')
+        if values:
+            file_index = int(values[0]) - 1  # Convert to 0-based index
+            if 0 <= file_index < len(self.selected_file_list):
+                original_file = self.selected_file_list[file_index]
+                if original_file in self.converted_files:
+                    # Delete the temp converted file to not waste space
+                    converted_file_path = self.converted_files[original_file]
+                    if os.path.exists(converted_file_path):
+                        try:
+                            os.remove(converted_file_path)
+                            print(f"Deleted temp file: {converted_file_path}")
+                        except Exception as e:
+                            print(f"Error deleting temp file: {e}")
+                    
+                    # Remove from converted_files dict
+                    del self.converted_files[original_file]
+                    print(f"Reset conversion state for: {original_file}")
     
     def text_file_to_pdf(self, text_file_path, output_pdf_path):
         # Create a canvas object
@@ -430,84 +540,165 @@ class FileConverterApp:
         # Convert the DOCX file to PDF
         convert(docx_file_path, output_pdf_path)
     
-    def convert_file(self, conversion_extension):
-        # START - Scope Vars
-        img_file_extensions  = ['.bmp', '.BMP',
-                                '.jpg', '.JPG',
-                                '.png', '.PNG',
-                                '.pdf', '.PDF',
-                                '.jpeg', '.JPEG'
-                                '.heic']
-        text_file_extensions = ['.txt', '.TXT',
-                                '.docx', '.DOCX']
-        vid_file_extensions  = ['.mp3', '.MP3',
-                                '.mp4', '.MP4',
-                                '.mov', '.MOV',
-                                '.avi', '.AVI']
-        # STOP - Scope Vars
+    def convert_all_files(self):
+        """Convert all files based on their individual dropdown selections"""
+        print("==================================================")
+        print(f"convert_all_files function has been called")
+        print(f"selected_file_list: {self.selected_file_list}")
+        print(f"file_list: {self.file_list.get_children()}")
+        print("==================================================")
+        if not self.selected_file_list:
+            messagebox.showwarning("Error", "No files to convert.")
+            return
         
-        # Error check for valid file extension
-        if conversion_extension not in self.valid_extensions:
-            print("ERROR: Invalid conversion extension")
-            messagebox.showwarning("Error", "Invalid conversion extension was selected.")
-            return  # STOPS function progression if error is detected
+        converted_count = 0
         
-        files_to_be_converted = []
-        for file in self.selected_file_list:  # Append the files that were previously selected to add them to the list
-            try:
-                files_to_be_converted.append(file)
-            except Exception as e:
-                print(f"An error occurred: {e}")
+        # Create a mapping of item_id to original file path
+        item_to_file_mapping = {}
+        for idx, item_id in enumerate(self.file_list.get_children()):
+            if idx < len(self.selected_file_list):
+                item_to_file_mapping[item_id] = self.selected_file_list[idx]
         
-        for file in files_to_be_converted:  # Convert the files
-            currentFileType = os.path.splitext(file)[1]  # The current file's extension
+        for item_id in self.file_list.get_children():
+            if item_id in self.dropdown_widgets and item_id in item_to_file_mapping:
+                dropdown = self.dropdown_widgets[item_id]
+                selected_extension = dropdown.get()
+                
+                if selected_extension == "Select Filetype" or not selected_extension:
+                    print(f"Skipping item {item_id}: no filetype selected")
+                    continue
+                
+                print(f"Processing item {item_id} with extension {selected_extension}")
+                
+                original_file = item_to_file_mapping[item_id]
+                print(f"Converting file: {original_file}")
+                converted_file_path = self.convert_single_file(original_file, selected_extension)
+                
+                if converted_file_path:
+                    self.converted_files[original_file] = converted_file_path
+                    # Enable the download button
+                    if item_id in self.download_buttons:
+                        self.download_buttons[item_id].configure(state='normal')
+                    converted_count += 1
+                    print(f"Successfully converted: {original_file}")
+                else:
+                    print(f"Failed to convert: {original_file}")
+        
+        if converted_count > 0:
+            messagebox.showinfo("Success", f"Successfully converted {converted_count} file(s).")
+        else:
+            messagebox.showwarning("Warning", "No files were converted. Please select output filetypes.")
+    
+    def convert_single_file(self, file_path, conversion_extension):
+        """Convert a single file and return the output path"""
+        try:
+            currentFileType = os.path.splitext(file_path)[1]
+            base_name = os.path.splitext(os.path.basename(file_path))[0]
+            output_file = os.path.join(self.temp_dir, base_name + conversion_extension)
             
-            if (currentFileType in img_file_extensions) and (conversion_extension not in text_file_extensions):  # image files are handled under this if statement
-                if currentFileType == conversion_extension:  # Check if the current filetype is the same as the conversion extension
-                    print("The filetype of", file, "matches the current selected conversion type and therefore was not converted.")
-                img = Image.open(file)  # Open the file in question
-                output_file = os.path.splitext(file)[0] + conversion_extension  # Splits the filepath into a tuple where the left side is the filepath and the right side is the file extension
-                img.save(output_file, conversion_extension.replace(".", "").upper() )  # Saves the new converted image with the name and extension selected by the user
-                print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console rs type shit
-            elif currentFileType in text_file_extensions:  # Text files are handled under this elif
-                if currentFileType == conversion_extension:  # Check if the current filetype is the same as the conversion extension
-                    print("The filetype of", file, "matches the current selected conversion type and therefore was not converted.")
-                elif (conversion_extension == '.pdf' or conversion_extension == '.PDF') and (currentFileType == '.txt' or currentFileType == '.TXT'):  # TXT --> PDF
-                    output_file = os.path.splitext(file)[0] + conversion_extension  # Gets the output file path
-                    self.text_file_to_pdf(file, output_file)
-                    print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
-                elif (conversion_extension == '.pdf' or conversion_extension == '.PDF') and (currentFileType == '.docx' or currentFileType == '.DOCX'):  # TXT --> PDF
-                    output_file = os.path.splitext(file)[0] + conversion_extension  # Gets the output file path
-                    self.docx_to_pdf(file, output_file)
-                    print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
-                elif (conversion_extension == '.txt' or conversion_extension == '.TXT') and (currentFileType == '.docx' or currentFileType == '.DOCX'):  # DOCX --> TXT
-                    output_file = os.path.splitext(file)[0] + conversion_extension
-                    pypandoc.convert_file(file, 'plain', outputfile=output_file + conversion_extension)
-                    print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
-                elif (conversion_extension == '.docx' or conversion_extension == '.DOCX') and (currentFileType == '.txt' or currentFileType == '.TXT'):  # TXT --> DOCX
-                    output_file = os.path.splitext(file)[0] + conversion_extension
+            # Image file conversions
+            img_file_extensions = ['.bmp', '.jpg', '.jpeg', '.png', '.heic', '.pdf']
+            text_file_extensions = ['.txt', '.docx']
+            
+            if currentFileType.lower() in [ext.lower() for ext in img_file_extensions]:
+                if conversion_extension.lower() not in [ext.lower() for ext in text_file_extensions]:
+                    if currentFileType.lower() == conversion_extension.lower():
+                        return None  # Same format, no conversion needed
+                    
+                    img = Image.open(file_path)
+                    img.save(output_file, conversion_extension.replace(".", "").upper())
+                    return output_file
+            
+            # Text file conversions
+            elif currentFileType.lower() in [ext.lower() for ext in text_file_extensions]:
+                if currentFileType.lower() == conversion_extension.lower():
+                    return None  # Same format, no conversion needed
+                
+                if conversion_extension.lower() == '.pdf':
+                    if currentFileType.lower() == '.txt':
+                        self.text_file_to_pdf(file_path, output_file)
+                        return output_file
+                    elif currentFileType.lower() == '.docx':
+                        self.docx_to_pdf(file_path, output_file)
+                        return output_file
+                
+                elif conversion_extension.lower() == '.txt' and currentFileType.lower() == '.docx':
+                    pypandoc.convert_file(file_path, 'plain', outputfile=output_file)
+                    return output_file
+                
+                elif conversion_extension.lower() == '.docx' and currentFileType.lower() == '.txt':
                     document = Document()
-                    with open(file, 'r', encoding='utf-8') as myfile:
+                    with open(file_path, 'r', encoding='utf-8') as myfile:
                         myfile_content = myfile.read()
-                    myfile_content = re.sub(r'[^\x00-\x7F]+|\x0c', ' ', myfile_content)  # Remove all non-XML-compatible characters
-                    document.add_heading(os.path.basename(file), 0)
+                    myfile_content = re.sub(r'[^\x00-\x7F]+|\x0c', ' ', myfile_content)
+                    document.add_heading(os.path.basename(file_path), 0)
                     document.add_paragraph(myfile_content)
                     document.save(output_file)
-                    print(f"Successfully converted {file} to {output_file}")  # Prints that shit to the console type shit
-                else:
-                    print("ERROR: Control flow has failed in the convert_file function! Code: Inner")
-            elif (currentFileType in img_file_extensions) and (conversion_extension in text_file_extensions):  # Tell user you can't currently do image to text conversions
-                print("Image --> Text conversions are not currently supported, therefore:", file, "was not converted.")
-            elif (currentFileType in vid_file_extensions):  # Tell user you can't do any video conversions
-                print("No types of video files are currently supported, therefore:", file, "was not converted.")
-            else: # Catch for unsupported filetypes
-                messagebox.showwarning("Error", "The file you have uploaded and selected for conversion's filetype is not supported.")
-                print("ERROR: Control flow has failed in the convert_file function! Code: Outer")
-
+                    return output_file
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error converting {file_path}: {e}")
+            messagebox.showerror("Error", f"Failed to convert {os.path.basename(file_path)}: {str(e)}")
+            return None
+    
+    def download_single_file(self, original_file, item_id):
+        """Download a single converted file"""
+        if original_file in self.converted_files:
+            converted_file = self.converted_files[original_file]
+            if os.path.exists(converted_file):
+                save_path = filedialog.asksaveasfilename(
+                    defaultextension=os.path.splitext(converted_file)[1],
+                    filetypes=[('All Files', '*.*')],
+                    initialfile=os.path.basename(converted_file)
+                )
+                if save_path:
+                    try:
+                        shutil.copy2(converted_file, save_path)
+                        messagebox.showinfo("Success", f"File saved to {save_path}")
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Failed to save file: {str(e)}")
+            else:
+                messagebox.showerror("Error", "Converted file not found. Please convert the file first.")
+        else:
+            messagebox.showwarning("Warning", "File not converted yet. Please convert the file first.")
+    
+    def download_all_files(self):
+        """Download all converted files to a selected directory"""
+        if not self.converted_files:
+            messagebox.showwarning("Warning", "No converted files available for download.")
+            return
+        
+        save_dir = filedialog.askdirectory(title="Select directory to save all converted files")
+        if save_dir:
+            try:
+                saved_count = 0
+                for original_file, converted_file in self.converted_files.items():
+                    if os.path.exists(converted_file):
+                        dest_path = os.path.join(save_dir, os.path.basename(converted_file))
+                        shutil.copy2(converted_file, dest_path)
+                        saved_count += 1
+                
+                messagebox.showinfo("Success", f"Successfully saved {saved_count} file(s) to {save_dir}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save files: {str(e)}")
+    
+    def cleanup_temp_files(self):
+        """Clean up temporary directory and files"""
+        try:
+            if hasattr(self, 'temp_dir') and os.path.exists(self.temp_dir):
+                shutil.rmtree(self.temp_dir)
+        except Exception as e:
+            print(f"Error cleaning up temp files: {e}")
+    
+    def __del__(self):
+        """Destructor to clean up temp files"""
+        self.cleanup_temp_files()
 
 
 if __name__ == "__main__":
     root = ttk.Window(title="Pyfile Converter", themename="united")  # Set initial theme
-    root.geometry("700x300")  # Set window size
+    root.geometry("740x300")  # Set window size
     app = FileConverterApp(root)
     root.mainloop()
