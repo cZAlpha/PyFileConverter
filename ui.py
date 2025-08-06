@@ -375,8 +375,8 @@ class FileConverterApp:
         
         # String cut the filepath to only include the filename and the file extensions
         
-        if ( len(files) > 10 ): # Error check for too many files at once
-            messagebox.showwarning("Error", "Please select no more than 10 files for upload.")
+        if ( len(files) > 20 ): # Error check for too many files at once
+            messagebox.showwarning("Error", "Please select no more than 20 files for upload.")
             return
         
         if not files:
