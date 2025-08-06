@@ -166,8 +166,16 @@ class FileConverterApp:
         
         # Configure grid column weights to ensure proper alignment
         self.main_frame.grid_columnconfigure(0, weight=0, minsize=10)  # Skinny leftmost column
-        self.main_frame.grid_columnconfigure(2, weight=1)
-        self.main_frame.grid_rowconfigure(2, weight=1)  # Ensure the file list expands
+        self.main_frame.grid_columnconfigure(1, weight=1)  # Middle column (file list) should expand
+        self.main_frame.grid_columnconfigure(2, weight=0)  # Right column (buttons) shouldn't expand
+        
+        # Configure row weights - row 0 is fixed height, row 1 should expand
+        self.main_frame.grid_rowconfigure(0, weight=0)  # Top row (title/buttons) fixed height
+        self.main_frame.grid_rowconfigure(1, weight=1)  # Middle row (file list) should expand
+        
+        # Configure the file list frame to expand
+        self.file_list_frame.grid_rowconfigure(0, weight=1)
+        self.file_list_frame.grid_columnconfigure(0, weight=1)
         
         # Bind the Treeview select event to start editing
         self.file_list.bind("<Double-1>", self.on_item_double_click)
@@ -720,6 +728,6 @@ class FileConverterApp:
 
 if __name__ == "__main__":
     root = ttk.Window(title="Pyfile Converter", themename="united")  # Set initial theme
-    root.geometry("740x300")  # Set window size
+    root.geometry("900x700")  # Set window size
     app = FileConverterApp(root)
     root.mainloop()
